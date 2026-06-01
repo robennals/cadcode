@@ -10,6 +10,8 @@ import {
   edgeCount,
   tessellate,
   regionFaceMesh,
+  extrudeProfile,
+  profileFaceMesh,
 } from "./kernel";
 
 describe("kernel box", () => {
@@ -60,5 +62,29 @@ describe("kernel fillet + mesh", () => {
     expect(mesh.positions.length).toBeGreaterThan(0);
     expect(mesh.indices.length).toBeGreaterThan(0);
     expect(mesh.positions.length % 3).toBe(0);
+  });
+});
+
+describe("kernel profile", () => {
+  beforeAll(async () => {
+    await init();
+  });
+
+  const square: [number, number][] = [
+    [0, 0],
+    [20, 0],
+    [20, 20],
+    [0, 20],
+  ];
+
+  it("extrudes a 20x20 square profile by 10 into a volume ~4000", () => {
+    const solid = extrudeProfile(square, 10);
+    expect(volume(solid)).toBeCloseTo(4000, 0);
+  });
+
+  it("meshes a closed polygon as a flat face", () => {
+    const mesh = profileFaceMesh("f", square);
+    expect(mesh.positions.length).toBeGreaterThan(0);
+    expect(mesh.indices.length).toBeGreaterThan(0);
   });
 });

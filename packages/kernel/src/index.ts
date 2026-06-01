@@ -11,6 +11,8 @@ export {
   edgeCount,
   tessellate,
   regionFaceMesh,
+  extrudeProfile,
+  profileFaceMesh,
   dispose,
 } from "./kernel";
 export type { Solid } from "./kernel";
