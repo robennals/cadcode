@@ -1,3 +1,4 @@
+// Tests for the protocol's only runtime helper, `isBodyNode`.
 import { describe, it, expect } from "vitest";
 import { isBodyNode, type Node } from "./index";
 

@@ -1,3 +1,7 @@
+// Geometry primitives over replicad/OpenCascade: build a box, fillet all edges,
+// measure volume/bounds/edge-count, and tessellate a solid to a transferable
+// mesh. Pure geometry — no model-graph or environment knowledge. Requires the
+// OC kernel to have been loaded first (see oc.ts / oc.browser.ts).
 import { drawRectangle, measureVolume } from "replicad";
 import type { BodyMesh } from "@cadcode/protocol";
 

@@ -1,3 +1,6 @@
+// Top-level UI: Monaco editor (left) + 3D viewport and hierarchy tree (right).
+// Owns the worker, debounces edits into "run" messages, renders results and
+// errors, and (when launched via the CLI) syncs the source file over /api/file.
 import { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import type { WorkerResponse, RunResult } from "@cadcode/protocol";

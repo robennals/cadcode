@@ -1,3 +1,5 @@
+// Playwright smoke test: loads the app and verifies the default model renders
+// one mesh, the tree shows the fillet, and no errors are reported.
 import { test, expect } from "@playwright/test";
 
 test("default model renders one mesh and a 3-node tree", async ({ page }) => {

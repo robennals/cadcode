@@ -1,3 +1,4 @@
+// Tests that the builder records the right graph and alive-body tracking.
 import { describe, it, expect } from "vitest";
 import { createBuilder } from "./builder";
 

@@ -1,3 +1,6 @@
+// Web Worker: lazily initializes esbuild-wasm and the OpenCascade kernel, then
+// on each "run" message compiles+executes the user source and posts back the
+// meshes (transferring buffers) and hierarchy. Keeps heavy WASM off the UI thread.
 import "./processShim";
 import { initialize, transform } from "esbuild-wasm";
 import wasmURL from "esbuild-wasm/esbuild.wasm?url";

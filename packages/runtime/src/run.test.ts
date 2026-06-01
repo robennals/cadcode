@@ -1,3 +1,5 @@
+// End-to-end runtime test: a source string compiles, runs, and produces a mesh
+// + hierarchy; invalid input is reported as errors rather than thrown.
 import { describe, it, expect, beforeAll } from "vitest";
 import { init } from "@cadcode/kernel/oc";
 import { run } from "./run";

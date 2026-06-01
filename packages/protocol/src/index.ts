@@ -1,3 +1,7 @@
+// Shared type definitions for cadcode: the model graph (nodes the builder
+// produces), tessellated mesh data, the serialized hierarchy, and the
+// worker<->main-thread message protocol. No runtime logic beyond `isBodyNode`.
+
 /** A selector describing a set of edges on a body. M0 supports only "all". */
 export interface EdgeSelector {
   body: string;

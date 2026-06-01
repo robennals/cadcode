@@ -1,3 +1,5 @@
+// Headless geometry tests: loads OpenCascade, then asserts box volume/bounds,
+// fillet behaviour, edge count, and non-empty tessellation.
 import { describe, it, expect, beforeAll } from "vitest";
 import { init } from "./oc";
 import {

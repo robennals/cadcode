@@ -1,3 +1,7 @@
+// The user-facing modelling API. `createBuilder()` returns the functions a user
+// script calls (rect/extrude/fillet/edges); each call records an immutable graph
+// node and tracks which bodies are still "alive" (not consumed). Pure data — no
+// geometry is computed here; that happens later in the kernel via the runtime.
 import type { Model, Node, EdgeSelector } from "@cadcode/protocol";
 
 /** Opaque handle the user passes between API calls. Wraps a node id. */

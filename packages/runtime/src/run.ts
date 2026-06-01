@@ -1,3 +1,7 @@
+// Orchestrates one model evaluation: compile the user's TS, execute it with the
+// core API injected as globals, then walk the resulting graph through the kernel
+// to produce meshes for every alive body plus a serialized hierarchy. All
+// errors (compile, runtime, geometry) are caught and returned, never thrown.
 import { createBuilder } from "@cadcode/core";
 import type { Model, RunResult, HierarchyNode, BodyMesh } from "@cadcode/protocol";
 import { extrudeRect, filletAll, tessellate, type Solid } from "@cadcode/kernel";

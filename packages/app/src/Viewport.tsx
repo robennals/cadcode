@@ -1,3 +1,6 @@
+// three.js viewport: sets up scene/camera/lights once, then rebuilds the meshes
+// (with a slow auto-rotate) whenever the body meshes change. Exposes
+// data-mesh-count for the smoke test.
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import type { BodyMesh } from "@cadcode/protocol";

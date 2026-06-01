@@ -1,3 +1,5 @@
+// CLI entry point. Parses argv and dispatches: `cadcode dev <file>` starts the
+// live editor server; `cadcode export` is a stub until milestone M4.
 import { startDev } from "./dev";
 
 export async function main(argv: string[]): Promise<void> {

@@ -1,3 +1,6 @@
+// Loads the OpenCascade WASM kernel into replicad in a Node environment
+// (used by tests and the headless CLI export path). Resolves the .wasm via
+// createRequire. The browser equivalent is oc.browser.ts.
 import { setOC } from "replicad";
 import ocFactory from "replicad-opencascadejs/src/replicad_single.js";
 import { createRequire } from "node:module";

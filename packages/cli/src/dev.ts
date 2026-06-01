@@ -1,3 +1,6 @@
+// `cadcode dev` implementation: starts a Vite server for the app and exposes the
+// chosen model file over /api/file (GET reads it with an X-Cadcode-Model marker,
+// POST writes edits back to disk). Also exports the file read/write helpers.
 import { readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "vite";
 import { fileURLToPath } from "node:url";

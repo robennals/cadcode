@@ -1,3 +1,4 @@
+// Tests the CLI's model-file read/write helpers against a temp file.
 import { describe, it, expect } from "vitest";
 import { readModelFile, writeModelFile } from "./dev";
 import { mkdtempSync, writeFileSync } from "node:fs";
