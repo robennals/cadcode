@@ -103,7 +103,7 @@ function evaluate(model: Model, solids: Map<string, Solid>): void {
       const specs = node.regions.map((rid, i) => regionSpec(model, rid, node.heights[i]));
       solids.set(id, loftProfiles(specs));
     } else if (node.op === "shell") {
-      solids.set(id, shellBody(need(node.body, "shell"), node.thickness));
+      solids.set(id, shellBody(need(node.body, "shell"), node.thickness, node.open));
     } else if (node.op === "fillet") {
       if (node.edges.kind !== "all") throw new Error("only edges(...).all is supported");
       solids.set(id, filletAll(need(node.body, "fillet"), node.radius));
@@ -170,6 +170,7 @@ export function runCode(
     intersect: builder.intersect,
     move: builder.move,
     edges: builder.edges,
+    faces: builder.faces,
     dimension,
     render: builder.render,
     point: builder.point,

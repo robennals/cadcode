@@ -46,11 +46,17 @@ describe("ops", () => {
     expect(v).toBeLessThan(Math.PI * 100 * 20); // 6283
   });
 
-  it("shellBody hollows the solid", () => {
-    const cyl = Math.PI * 100 * 20; // π*100*20
-    const v = volume(shellBody(extrudeCircle(10, 20), 2));
-    expect(v).toBeGreaterThan(0);
-    expect(v).toBeLessThan(cyl);
+  it("shellBody opens only the top, keeping the bottom closed (a cup)", () => {
+    // r=10, h=20, t=2 -> outer π·100·20 minus inner cavity π·64·18 ≈ 2664.
+    const cup = volume(shellBody(extrudeCircle(10, 20), 2, ["top"]));
+    expect(cup).toBeCloseTo(2664, -2);
+  });
+
+  it("shellBody open at both ends has less volume than the cup (no bottom)", () => {
+    const cup = volume(shellBody(extrudeCircle(10, 20), 2, ["top"]));
+    const tube = volume(shellBody(extrudeCircle(10, 20), 2, ["top", "bottom"]));
+    expect(tube).toBeLessThan(cup); // the bottom disc is gone
+    expect(tube).toBeGreaterThan(0);
   });
 
   it("chamferAll reduces a box volume", () => {

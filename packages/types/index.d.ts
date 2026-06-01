@@ -43,8 +43,27 @@ declare function revolve(region: Handle, opts?: { angle?: number }): Handle;
 /** Loft through a stack of regions, each placed at the matching z height. */
 declare function loft(regions: Handle[], heights: number[]): Handle;
 
-/** Hollow a body to a wall thickness (open-top vessel). */
-declare function shell(body: Handle, thickness: number): Handle;
+/** A named face selector (from `faces(body)`). */
+declare interface FaceSelector {
+  body: string;
+  kind: "top" | "bottom" | "sides" | "all";
+}
+declare interface FaceQuery {
+  readonly top: FaceSelector;
+  readonly bottom: FaceSelector;
+  readonly sides: FaceSelector;
+  readonly all: FaceSelector;
+}
+/** Query the named faces of a body (for shell, etc.). */
+declare function faces(body: Handle): FaceQuery;
+
+/** Hollow a body to a wall thickness, opening the selected face(s). Defaults to
+ *  the top (a cup); pass `[faces(b).top, faces(b).bottom]` for an open tube. */
+declare function shell(
+  body: Handle,
+  thickness: number,
+  open?: FaceSelector | FaceSelector[],
+): Handle;
 
 /** Round the selected edges of a body. */
 declare function fillet(body: Handle, edges: EdgeSelector, radius: number): Handle;

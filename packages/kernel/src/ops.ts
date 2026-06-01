@@ -82,11 +82,30 @@ export function loftProfiles(profiles: ProfileSpec[]): Solid {
   return first.loftWith(rest);
 }
 
-/** Hollow a solid to wall `thickness`, removing the upward (top) faces so the
- *  result is an open vessel. The top face is selected via a FaceFinder whose
- *  normal is parallel to +Z (`atAngleWith([0, 0, 1], 0)`). */
-export function shellBody(solid: Solid, thickness: number): Solid {
-  return (solid as any).shell(thickness, (f: any) => f.atAngleWith([0, 0, 1], 0));
+export type FaceKind = "top" | "bottom" | "sides" | "all";
+
+/** Hollow a solid to wall `thickness`, opening the named cap face(s). Faces are
+ *  resolved geometrically: "top"/"bottom" are the flat caps at the solid's
+ *  max/min Z; opening both uses `parallelTo("XY")`. (Robust provenance-based
+ *  face naming for arbitrary bodies is the M2 selection work.) */
+export function shellBody(
+  solid: Solid,
+  thickness: number,
+  open: FaceKind[],
+): Solid {
+  const kinds = new Set(open.length ? open : ["top"]);
+  const [min, max] = (solid as any).boundingBox.bounds as [number[], number[]];
+  let filter: (f: any) => any;
+  if (kinds.has("top") && kinds.has("bottom")) {
+    filter = (f) => f.parallelTo("XY");
+  } else if (kinds.has("bottom")) {
+    filter = (f) => f.inPlane("XY", min[2]);
+  } else if (kinds.has("top")) {
+    filter = (f) => f.inPlane("XY", max[2]);
+  } else {
+    throw new Error("shell: can only open 'top' and/or 'bottom' faces");
+  }
+  return (solid as any).shell(thickness, filter);
 }
 
 /** Chamfer every edge of a solid by `distance` (no edge filter). */

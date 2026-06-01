@@ -8,6 +8,14 @@ export interface EdgeSelector {
   kind: "all";
 }
 
+/** A named set of faces on a body. Resolved geometrically at evaluate time
+ *  (top = the flat cap at max Z, bottom = at min Z, sides = the rest, all). */
+export type FaceKind = "top" | "bottom" | "sides" | "all";
+export interface FaceSelector {
+  body: string;
+  kind: FaceKind;
+}
+
 /** A closed 2D profile. M0 supports only an axis-aligned rectangle (centered). */
 export interface RectNode {
   id: string;
@@ -67,12 +75,13 @@ export interface LoftNode {
   sources: string[];
 }
 
-/** Hollow a body to a wall thickness (open-top vessel). */
+/** Hollow a body to a wall thickness, opening the selected face(s). */
 export interface ShellNode {
   id: string;
   op: "shell";
   body: string;
   thickness: number;
+  open: FaceKind[]; // which named faces to open (e.g. ["top"], ["top","bottom"])
   sources: string[];
 }
 

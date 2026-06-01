@@ -192,6 +192,9 @@ export function Viewport({ meshes }: { meshes: BodyMesh[] }) {
       color: 0x4f9dde,
       metalness: 0.1,
       roughness: 0.6,
+      // Render both sides so hollow/open shapes (shells, funnels) don't look
+      // cut-through where you see their interior walls.
+      side: THREE.DoubleSide,
     });
     materialRef.current = mat;
     for (const m of meshes) {

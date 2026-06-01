@@ -6,6 +6,8 @@ import type {
   Model,
   Node,
   EdgeSelector,
+  FaceSelector,
+  FaceKind,
   RenderDecl,
   PointDef,
   LineDef,
@@ -19,6 +21,14 @@ export interface Handle {
 
 export interface EdgeQuery {
   readonly all: EdgeSelector;
+}
+
+/** Named face selectors on a body (resolved geometrically at evaluate time). */
+export interface FaceQuery {
+  readonly top: FaceSelector;
+  readonly bottom: FaceSelector;
+  readonly sides: FaceSelector;
+  readonly all: FaceSelector;
 }
 
 /** A sketch point handle. */
@@ -40,7 +50,12 @@ export interface Builder {
   extrude(region: Handle, height: number): Handle;
   revolve(region: Handle, opts?: { angle?: number }): Handle;
   loft(regions: Handle[], heights: number[]): Handle;
-  shell(body: Handle, thickness: number): Handle;
+  shell(
+    body: Handle,
+    thickness: number,
+    open?: FaceSelector | FaceSelector[],
+  ): Handle;
+  faces(body: Handle): FaceQuery;
   fillet(body: Handle, edges: EdgeSelector, radius: number): Handle;
   chamfer(body: Handle, edges: EdgeSelector, distance: number): Handle;
   union(a: Handle, b: Handle): Handle;
@@ -185,13 +200,16 @@ export function createBuilder(): Builder {
         ids,
       );
     },
-    shell(body, thickness) {
+    shell(body, thickness, open) {
+      const sels = open === undefined ? [] : Array.isArray(open) ? open : [open];
+      const kinds: FaceKind[] = sels.length ? sels.map((s) => s.kind) : ["top"];
       return add(
         {
           id: nextId("shell"),
           op: "shell",
           body: body.__id,
           thickness,
+          open: kinds,
           sources: [body.__id],
         },
         [body.__id],
@@ -258,6 +276,15 @@ export function createBuilder(): Builder {
     },
     edges(body) {
       return { all: { body: body.__id, kind: "all" } };
+    },
+    faces(body) {
+      const sel = (kind: FaceKind): FaceSelector => ({ body: body.__id, kind });
+      return {
+        top: sel("top"),
+        bottom: sel("bottom"),
+        sides: sel("sides"),
+        all: sel("all"),
+      };
     },
     render(primary, stages = {}) {
       renderDecl = {
