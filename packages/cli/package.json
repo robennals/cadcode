@@ -1,0 +1,7 @@
+{
+  "name": "@cadcode/cli",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": { "cadcode": "bin/cadcode.js" },
+  "dependencies": { "@cadcode/app": "workspace:*", "vite": "^5.4.0" }
+}
