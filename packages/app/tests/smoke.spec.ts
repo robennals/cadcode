@@ -120,3 +120,10 @@ test("renders a constraint-solved sketch (square) and its sketch stage", async (
   await expect(page.getByTestId("stage-sketch")).toContainText("sketch");
   await expect(page.getByTestId("errors")).toBeHidden();
 });
+
+test("renders an operator example (revolved bottle)", async ({ page }) => {
+  await page.goto("/?file=bottle.ts");
+  await expect.poll(() => meshCount(page), { timeout: 60000 }).toBe(1);
+  await expect(page.getByTestId("stage-result")).toContainText("revolve");
+  await expect(page.getByTestId("errors")).toBeHidden();
+});

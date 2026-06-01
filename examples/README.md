@@ -16,11 +16,31 @@ the viewport renders the primary object, and the stage panel at the bottom lists
 the named stages so you can click one to view it instead (e.g. in `cube.ts`, step
 back from the rounded cube to the plain `cube` or the base `face`).
 
-## Files
+## Gallery
 
-- `cube.ts` — a rounded cube; the simplest self-contained model.
-- `bracket.ts` — built from a helper in `lib/shapes.ts`, showing cross-file imports.
-- `lib/shapes.ts` — reusable geometry helpers (not a model on its own).
-- `tsconfig.json` — sets `"types": ["@cadcode/types"]` so editors get IntelliSense
+Each file is a small, self-contained part that shows off an operator:
+
+| File | Shows |
+|---|---|
+| `cube.ts` | extrude + fillet; render stages |
+| `cylinder.ts` | `circle` + extrude |
+| `square.ts` | constraint-solved sketch (`lines`/`coincident`/`distance`, …) |
+| `washer.ts` | boolean `subtract` (a disc minus a concentric hole) |
+| `bottle.ts` | `revolve` a 2D profile around the axis |
+| `funnel.ts` | `loft` through stacked circles |
+| `cup.ts` | `shell` (hollow open-top vessel) |
+| `beveled-block.ts` | `chamfer` (bevelled edges) |
+| `bracket.ts` | `move` + `subtract` (a slab with two drilled bolt holes) |
+| `lib/shapes.ts` | reusable helpers (not a model on its own) |
+
+## Operators
+
+`extrude`, `revolve`, `loft`, `shell`, `fillet`, `chamfer`, `union`, `subtract`,
+`intersect`, `move`; regions `rect`, `circle`, `polygon`, and constraint
+`sketch(...)`. (`sweep` and parametric `dimension()` are coming next.)
+
+## Setup
+
+- `tsconfig.json` sets `"types": ["@cadcode/types"]` so editors get IntelliSense
   for the global API. (This folder depends on `@cadcode/types` rather than keeping
   a `.d.ts` of its own — the same setup you'd use in your own project.)

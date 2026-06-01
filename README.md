@@ -52,7 +52,10 @@ Sketches can be defined with **constraints** instead of explicit coordinates —
 `lines`, `coincident`, `parallel`, `perpendicular`, `equal`, `horizontal`,
 `distance`, … solved by FreeCAD's GCS solver. See `examples/square.ts`.
 
-`./examples` has more. For editor
+**Operators:** `extrude`, `revolve`, `loft`, `shell`, `fillet`, `chamfer`,
+`union`/`subtract`/`intersect`, `move`; regions `rect`/`circle`/`polygon` and
+constraint `sketch`. The `./examples` gallery shows each one (a revolved bottle,
+a lofted funnel, a shelled cup, a drilled bracket, …). For editor
 IntelliSense in your own project, install **`@cadcode/types`** and add it to your
 tsconfig — `{ "compilerOptions": { "types": ["@cadcode/types"] } }` — instead of
 keeping a `.d.ts` in your code folder.
