@@ -32,4 +32,26 @@ describe("createBuilder", () => {
     expect(model.alive).toHaveLength(1);
     expect(model.nodes[model.alive[0]].op).toBe("extrude");
   });
+
+  it("records render() with a primary and named stages", () => {
+    const b = createBuilder();
+    const face = b.rect(20, 20);
+    const cube = b.extrude(face, 20);
+    const rounded = b.fillet(cube, b.edges(cube).all, 3);
+    b.render(rounded, { cube, face });
+    const model = b.getModel();
+    expect(model.render?.primary).toBe(rounded.__id);
+    expect(model.render?.stages).toEqual([
+      { name: "cube", id: cube.__id },
+      { name: "face", id: face.__id },
+    ]);
+  });
+
+  it("falls back to the last alive body when render() is not called", () => {
+    const b = createBuilder();
+    const cube = b.extrude(b.rect(10, 10), 5);
+    const model = b.getModel();
+    expect(model.render?.primary).toBe(cube.__id);
+    expect(model.render?.stages).toEqual([]);
+  });
 });

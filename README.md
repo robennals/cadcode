@@ -33,13 +33,22 @@ imports — in your own editor, and the render refreshes automatically.
 ## Example (M0)
 
 ```ts
-// examples/bracket.ts — models are real TS and can import other files.
-import { roundedBlock } from "./lib/shapes";
+// examples/cube.ts
+const face = rect(30, 30);
+const cube = extrude(face, 30);
+const rounded = fillet(cube, edges(cube).all, 4);
 
-const bracket = roundedBlock(40, 12, 3);
+// Show the rounded cube by default; the stage panel at the bottom also lets you
+// click to view the plain `cube` or the base `face`.
+render(rounded, { cube, face });
 ```
 
-`./examples` has more, including a self-contained `cube.ts`. For editor
+A model declares what to display with `render(primary, { ...stages })`: the
+viewport shows the primary object, and the stage panel lists the named stages
+(with their type) so you can click one to view it instead. Model files can also
+`import` other files (see `examples/bracket.ts`).
+
+`./examples` has more. For editor
 IntelliSense in your own project, install **`@cadcode/types`** and add it to your
 tsconfig — `{ "compilerOptions": { "types": ["@cadcode/types"] } }` — instead of
 keeping a `.d.ts` in your code folder.
@@ -50,7 +59,8 @@ The `cadcode dev` server bundles the selected file + its imports with esbuild,
 runs it headlessly through the kernel (OpenCascade via replicad), and live-pushes
 the resulting meshes to the browser over Vite's HMR socket. The browser is a thin
 viewer: a file sidebar, a three.js viewport with rotate/pan/zoom/fit controls, and
-a hierarchy panel. Rendering is lazy — only the file you're viewing is built.
+a stage panel for the model's `render()` stages. Rendering is lazy — only the file
+you're viewing is built.
 
 ## Tests
 

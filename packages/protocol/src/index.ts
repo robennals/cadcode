@@ -36,12 +36,26 @@ export interface FilletNode {
 export type BodyNode = ExtrudeNode | FilletNode;
 export type Node = RectNode | BodyNode;
 
+/** A render target: a named node the user asked to be viewable via `render()`. */
+export interface RenderTarget {
+  name: string;
+  id: string; // node id
+}
+
+/** What `render(primary, { ...stages })` declared for a model. */
+export interface RenderDecl {
+  primary: string; // node id of the main object
+  stages: RenderTarget[]; // additional named targets (not including primary)
+}
+
 export interface Model {
   /** All nodes by id; creation order is in `order`. */
   nodes: Record<string, Node>;
   order: string[];
-  /** Body ids that are alive (created, not consumed) — these render. */
+  /** Body ids that are alive (created, not consumed) — used as a render fallback. */
   alive: string[];
+  /** What to render (from `render()`, or a fallback to the last alive body). */
+  render?: RenderDecl;
 }
 
 export function isBodyNode(node: Node): node is BodyNode {
@@ -56,18 +70,18 @@ export interface BodyMesh {
   indices: Uint32Array;
 }
 
-/** A serialized hierarchy node for the tree panel. */
-export interface HierarchyNode {
-  id: string;
-  op: Node["op"];
-  label: string;
-  alive: boolean;
-  children: string[]; // ids of source nodes
+/** A meshed render stage — one selectable item in the viewer's stage panel. */
+export interface StageMesh {
+  name: string; // "result" for the primary, else the user's name
+  op: Node["op"]; // what it is (rect / extrude / fillet)
+  mesh: BodyMesh;
 }
 
 export interface RunResult {
-  hierarchy: HierarchyNode[];
-  meshes: BodyMesh[];
+  /** The renderable stages; the first is the primary. */
+  stages: StageMesh[];
+  /** Name of the primary stage (the default view), or null if nothing to render. */
+  primary: string | null;
   errors: string[];
 }
 
@@ -79,7 +93,7 @@ export function errorMessage(e: unknown): string {
 
 /** An empty render result, optionally carrying error messages. */
 export function emptyResult(errors: string[] = []): RunResult {
-  return { hierarchy: [], meshes: [], errors };
+  return { stages: [], primary: null, errors };
 }
 
 // --- Transport (server -> viewer) ---
@@ -94,34 +108,52 @@ export interface SerializedMesh {
   indices: number[];
 }
 
+export interface SerializedStage {
+  name: string;
+  op: string;
+  mesh: SerializedMesh;
+}
+
 export interface SerializedRunResult {
-  hierarchy: HierarchyNode[];
-  meshes: SerializedMesh[];
+  stages: SerializedStage[];
+  primary: string | null;
   errors: string[];
+}
+
+function serializeMesh(m: BodyMesh): SerializedMesh {
+  return {
+    id: m.id,
+    positions: Array.from(m.positions),
+    normals: Array.from(m.normals),
+    indices: Array.from(m.indices),
+  };
+}
+
+function deserializeMesh(m: SerializedMesh): BodyMesh {
+  return {
+    id: m.id,
+    positions: new Float32Array(m.positions),
+    normals: new Float32Array(m.normals),
+    indices: new Uint32Array(m.indices),
+  };
 }
 
 export function serializeRunResult(r: RunResult): SerializedRunResult {
   return {
-    hierarchy: r.hierarchy,
+    primary: r.primary,
     errors: r.errors,
-    meshes: r.meshes.map((m) => ({
-      id: m.id,
-      positions: Array.from(m.positions),
-      normals: Array.from(m.normals),
-      indices: Array.from(m.indices),
-    })),
+    stages: r.stages.map((s) => ({ name: s.name, op: s.op, mesh: serializeMesh(s.mesh) })),
   };
 }
 
 export function deserializeRunResult(s: SerializedRunResult): RunResult {
   return {
-    hierarchy: s.hierarchy,
+    primary: s.primary,
     errors: s.errors,
-    meshes: s.meshes.map((m) => ({
-      id: m.id,
-      positions: new Float32Array(m.positions),
-      normals: new Float32Array(m.normals),
-      indices: new Uint32Array(m.indices),
+    stages: s.stages.map((st) => ({
+      name: st.name,
+      op: st.op as StageMesh["op"],
+      mesh: deserializeMesh(st.mesh),
     })),
   };
 }
