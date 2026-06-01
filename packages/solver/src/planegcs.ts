@@ -85,11 +85,16 @@ export function solveSketch(sketch: SketchNode): SketchSolution {
     const status = gcs.solve();
     gcs.apply_solution();
 
-    if (status !== SolveStatus.Success) {
+    // Success = solved exactly; Converged = solved by the numeric solver (e.g.
+    // with redundant-but-consistent constraints, which is fine — FreeCAD only
+    // warns). Failed / SuccessfulSolutionInvalid are real failures.
+    const solved =
+      status === SolveStatus.Success || status === SolveStatus.Converged;
+    if (!solved) {
       return {
         status: "failed",
         points: {},
-        message: `solver returned status ${status}`,
+        message: `sketch could not be solved (solver status ${status})`,
       };
     }
 

@@ -50,7 +50,7 @@ export interface Builder {
   horizontal(line: Line): void;
   vertical(line: Line): void;
   distance(a: Point, b: Point, value: number): void;
-  sketch<T extends Record<string, Line>>(entities: T): T & { region: Handle };
+  sketch<T extends Record<string, Line>>(entities: T): T & Handle & { region: Handle };
   getModel(): Model;
 }
 
@@ -231,7 +231,9 @@ export function createBuilder(): Builder {
         sources: [],
       };
       const handle = add(node, []);
-      return { ...entities, region: handle };
+      // The result IS a handle (so it can be a render target) and also exposes
+      // `.region` (for extrude) plus the named entities.
+      return { ...entities, __id: handle.__id, region: handle };
     },
     getModel() {
       // Fall back to the last alive body when the model didn't call render().

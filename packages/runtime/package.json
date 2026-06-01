@@ -8,11 +8,14 @@
     "./run": "./src/run.ts",
     "./compile-node": "./src/compile.ts"
   },
-  "scripts": { "build": "tsc -p tsconfig.json" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
   "dependencies": {
     "@cadcode/protocol": "workspace:*",
     "@cadcode/core": "workspace:*",
     "@cadcode/kernel": "workspace:*",
-    "esbuild": "^0.24.0"
+    "esbuild": "^0.24.0",
+    "@cadcode/solver": "workspace:*"
   }
 }
