@@ -56,11 +56,28 @@ export function App() {
   }, [source, worker]);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", height: "100%" }}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        height: "100%",
+        width: "100%",
+        overflow: "hidden",
+      }}
+    >
       <div
-        style={{ display: "flex", flexDirection: "column", borderRight: "1px solid #333" }}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          borderRight: "1px solid #333",
+          // Without min-width:0 the Monaco editor refuses to shrink and pushes
+          // the right-hand column off-screen on narrow windows.
+          minWidth: 0,
+          minHeight: 0,
+          overflow: "hidden",
+        }}
       >
-        <div style={{ flex: 1, minHeight: 0 }}>
+        <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
           <Editor
             defaultLanguage="typescript"
             value={source}
@@ -82,6 +99,7 @@ export function App() {
           data-testid="errors"
           style={{
             height: 80,
+            flexShrink: 0,
             overflow: "auto",
             background: "#2a1a1a",
             color: "#f88",
@@ -95,12 +113,25 @@ export function App() {
           ))}
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateRows: "1fr auto", height: "100%" }}>
+      <div
+        style={{
+          display: "grid",
+          // viewport (1fr) shrinks first; the tree (auto) keeps its size, so the
+          // hierarchy browser stays on-screen even when the window is short.
+          gridTemplateRows: "1fr auto",
+          height: "100%",
+          minWidth: 0,
+          minHeight: 0,
+          overflow: "hidden",
+        }}
+      >
         <Viewport meshes={result.meshes} />
         <div
           data-testid="tree"
           style={{
             maxHeight: 160,
+            flexShrink: 0,
+            borderTop: "1px solid #333",
             overflow: "auto",
             background: "#252526",
             color: "#ccc",

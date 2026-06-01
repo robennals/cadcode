@@ -232,7 +232,16 @@ export function Viewport({ meshes }: { meshes: BodyMesh[] }) {
       onKeyDown={onKeyDown}
       data-testid="viewport"
       data-mesh-count={meshes.length}
-      style={{ position: "relative", width: "100%", height: "100%", outline: "none" }}
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        // Allow the grid row to shrink instead of overflowing on small windows.
+        minWidth: 0,
+        minHeight: 0,
+        overflow: "hidden",
+        outline: "none",
+      }}
     >
       <div ref={hostRef} style={{ position: "absolute", inset: 0 }} />
       <style>{CONTROL_CSS}</style>
