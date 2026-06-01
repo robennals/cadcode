@@ -3,6 +3,11 @@
   "version": "0.0.0",
   "type": "module",
   "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./oc": "./src/oc.ts",
+    "./oc-browser": "./src/oc.browser.ts"
+  },
   "scripts": { "build": "tsc -p tsconfig.json" },
   "dependencies": {
     "@cadcode/protocol": "workspace:*",

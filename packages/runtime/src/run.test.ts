@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { init } from "@cadcode/kernel";
+import { init } from "@cadcode/kernel/oc";
 import { run } from "./run";
 import { nodeCompile } from "./compile";
 
