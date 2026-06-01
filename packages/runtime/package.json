@@ -3,5 +3,11 @@
   "version": "0.0.0",
   "type": "module",
   "main": "src/index.ts",
-  "scripts": { "build": "tsc -p tsconfig.json" }
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@cadcode/protocol": "workspace:*",
+    "@cadcode/core": "workspace:*",
+    "@cadcode/kernel": "workspace:*",
+    "esbuild": "^0.24.0"
+  }
 }
