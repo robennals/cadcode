@@ -15,25 +15,46 @@ import {
 } from "@cadcode/protocol";
 import {
   extrudeRect,
+  extrudeProfile,
   filletAll,
   tessellate,
   regionFaceMesh,
+  profileFaceMesh,
   dispose,
   type Solid,
 } from "@cadcode/kernel";
+import { solveSketch } from "@cadcode/solver";
 import type { CompileFn } from "./compile";
 
 const DEFAULT_TIMEOUT_MS = 5000;
+
+/** Solve a sketch node into a closed profile of solved [x,y] corners. */
+function profileOf(model: Model, id: string): [number, number][] {
+  const node = model.nodes[id];
+  if (node.op !== "sketch") throw new Error(`'${id}' is not a sketch`);
+  const sol = solveSketch(node);
+  if (sol.status !== "ok") throw new Error(sol.message ?? "sketch failed to solve");
+  return node.loop.map((pid) => {
+    const p = sol.points[pid];
+    if (!p) throw new Error(`sketch solution missing point '${pid}'`);
+    return [p.x, p.y] as [number, number];
+  });
+}
 
 /** Walk the graph, producing a replicad Solid for each body id into `solids`. */
 function evaluate(model: Model, solids: Map<string, Solid>): void {
   for (const id of model.order) {
     const node = model.nodes[id];
-    if (node.op === "rect") continue; // regions are realised by their consumer
+    if (node.op === "rect" || node.op === "sketch") continue; // regions
     if (node.op === "extrude") {
       const region = model.nodes[node.region];
-      if (region?.op !== "rect") throw new Error(`extrude: unknown region '${node.region}'`);
-      solids.set(id, extrudeRect(region.width, region.height, node.height));
+      if (region?.op === "rect") {
+        solids.set(id, extrudeRect(region.width, region.height, node.height));
+      } else if (region?.op === "sketch") {
+        solids.set(id, extrudeProfile(profileOf(model, node.region), node.height));
+      } else {
+        throw new Error(`extrude: unknown region '${node.region}'`);
+      }
     } else if (node.op === "fillet") {
       const base = solids.get(node.body);
       if (!base) throw new Error(`fillet: no geometry for body '${node.body}'`);
@@ -49,6 +70,9 @@ function meshTarget(model: Model, solids: Map<string, Solid>, id: string): Stage
   if (!node) throw new Error(`render target '${id}' does not exist`);
   if (node.op === "rect") {
     return { name: "", op: "rect", mesh: regionFaceMesh(id, node.width, node.height) };
+  }
+  if (node.op === "sketch") {
+    return { name: "", op: "sketch", mesh: profileFaceMesh(id, profileOf(model, id)) };
   }
   const solid = solids.get(id);
   if (!solid) throw new Error(`render target '${id}' has no geometry`);
@@ -81,6 +105,16 @@ export function runCode(
     edges: builder.edges,
     dimension,
     render: builder.render,
+    point: builder.point,
+    lines: builder.lines,
+    coincident: builder.coincident,
+    parallel: builder.parallel,
+    perpendicular: builder.perpendicular,
+    equal: builder.equal,
+    horizontal: builder.horizontal,
+    vertical: builder.vertical,
+    distance: builder.distance,
+    sketch: builder.sketch,
   });
 
   try {

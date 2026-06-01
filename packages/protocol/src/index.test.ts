@@ -7,6 +7,9 @@ import {
   deserializeRunResult,
   type Node,
   type RunResult,
+  type SketchNode,
+  type ConstraintDef,
+  type SketchSolution,
 } from "./index";
 
 describe("isBodyNode", () => {
@@ -24,6 +27,26 @@ describe("isBodyNode", () => {
     expect(isBodyNode(rect)).toBe(false);
     expect(isBodyNode(extrude)).toBe(true);
     expect(isBodyNode(fillet)).toBe(true);
+  });
+});
+
+describe("sketch types", () => {
+  it("models a sketch node and a solution", () => {
+    const c: ConstraintDef = { kind: "distance", p1: "p0", p2: "p1", value: 20 };
+    const sketch: SketchNode = {
+      id: "sketch_0",
+      op: "sketch",
+      points: [{ id: "p0", x: 0, y: 0, fixed: true }],
+      lines: [{ id: "l0", p1: "p0", p2: "p1" }],
+      constraints: [c],
+      loop: ["p0", "p1"],
+      sources: [],
+    };
+    const sol: SketchSolution = { status: "ok", points: { p0: { x: 0, y: 0 } } };
+    expect(sketch.op).toBe("sketch");
+    expect(sol.status).toBe("ok");
+    // A sketch is a region, not a body.
+    expect(isBodyNode(sketch as unknown as Node)).toBe(false);
   });
 });
 

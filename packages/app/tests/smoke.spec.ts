@@ -109,3 +109,14 @@ test("layout stays on-screen on a small window", async ({ page }) => {
   expect(fit!.x + fit!.width).toBeLessThanOrEqual(W + 1);
   expect(fit!.y + fit!.height).toBeLessThanOrEqual(H + 1);
 });
+
+test("renders a constraint-solved sketch (square) and its sketch stage", async ({
+  page,
+}) => {
+  await page.goto("/?file=square.ts");
+  await expect.poll(() => meshCount(page), { timeout: 60000 }).toBe(1);
+  // Stages: the extruded result + the solved sketch shown as a face.
+  await expect(page.getByTestId("stage-result")).toContainText("extrude");
+  await expect(page.getByTestId("stage-sketch")).toContainText("sketch");
+  await expect(page.getByTestId("errors")).toBeHidden();
+});

@@ -34,7 +34,52 @@ export interface FilletNode {
 }
 
 export type BodyNode = ExtrudeNode | FilletNode;
-export type Node = RectNode | BodyNode;
+export type Node = RectNode | BodyNode | SketchNode;
+
+// --- Sketch constraints (M1) ---
+
+/** A sketch point: a seed position and whether it's pinned for the solver. */
+export interface PointDef {
+  id: string;
+  x: number;
+  y: number;
+  fixed: boolean;
+}
+
+/** A sketch line between two points (by id). */
+export interface LineDef {
+  id: string;
+  p1: string;
+  p2: string;
+}
+
+/** Geometric + dimensional constraints (M1 first slice). */
+export type ConstraintDef =
+  | { kind: "coincident"; p1: string; p2: string } // point ids
+  | { kind: "parallel"; l1: string; l2: string } // line ids
+  | { kind: "perpendicular"; l1: string; l2: string }
+  | { kind: "equalLength"; l1: string; l2: string }
+  | { kind: "horizontal"; line: string }
+  | { kind: "vertical"; line: string }
+  | { kind: "distance"; p1: string; p2: string; value: number };
+
+/** A sketch as a graph node — a region that can be extruded/rendered. */
+export interface SketchNode {
+  id: string;
+  op: "sketch";
+  points: PointDef[];
+  lines: LineDef[];
+  constraints: ConstraintDef[];
+  loop: string[]; // ordered point ids forming the closed boundary
+  sources: string[];
+}
+
+/** Result of solving a sketch. */
+export interface SketchSolution {
+  status: "ok" | "failed";
+  points: Record<string, { x: number; y: number }>; // solved coords by point id
+  message?: string;
+}
 
 /** A render target: a named node the user asked to be viewable via `render()`. */
 export interface RenderTarget {

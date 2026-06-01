@@ -288,11 +288,16 @@ Each milestone is independently playable and builds on the previous one.
 - *Demo:* `pnpm dev` renders `examples/`; edit `examples/bracket.ts` (which imports
   `lib/shapes.ts`) in your editor and watch the render refresh.
 
-### M1 — 2D constraint solver
+### M1 — 2D constraint solver — *first slice delivered*
 *Goal: the `square()`-via-constraints example.*
-- Integrate **planegcs** (FreeCAD's solver, WASM) into `core`.
-- Geometric + dimensional constraints; `dimension()` free vars; args pin DOF; solve fires
-  when a sketch is consumed; under/over-constraint diagnostics.
+- **Delivered:** `@cadcode/solver` wraps **planegcs** (FreeCAD's GCS, WASM); the solve runs
+  in the **evaluate phase** (Node, trusted build step — not the user-code sandbox). Geometric
+  constraints (`coincident`, `parallel`, `perpendicular`, `equal`, `horizontal`, `vertical`)
+  and numeric `distance`; sketches solve when consumed by extrude/render; the solved profile
+  extrudes, and the sketch renders as a face stage. Failed solves surface as the viewer error.
+- **Remaining in M1:** free `dimension()` variables (args pin DOF), arcs/circles/B-splines,
+  sub-sketch composition with threaded dimensions, and FreeCAD-grade per-constraint
+  (under/over-constraint, redundant) diagnostics.
 
 ### M2 — Hierarchy browser + selection/picking
 *Goal: click an edge, fillet it.*

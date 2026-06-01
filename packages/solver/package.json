@@ -1,0 +1,11 @@
+{
+  "name": "@cadcode/solver",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@cadcode/protocol": "workspace:*",
+    "@salusoft89/planegcs": "^1.1.7"
+  }
+}

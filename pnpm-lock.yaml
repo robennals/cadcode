@@ -75,6 +75,9 @@ importers:
       '@cadcode/runtime':
         specifier: workspace:*
         version: link:../runtime
+      '@cadcode/solver':
+        specifier: workspace:*
+        version: link:../solver
       esbuild:
         specifier: ^0.24.0
         version: 0.24.2
@@ -113,9 +116,21 @@ importers:
       '@cadcode/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@cadcode/solver':
+        specifier: workspace:*
+        version: link:../solver
       esbuild:
         specifier: ^0.24.0
         version: 0.24.2
+
+  packages/solver:
+    dependencies:
+      '@cadcode/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@salusoft89/planegcs':
+        specifier: ^1.1.7
+        version: 1.1.7
 
   packages/types: {}
 
@@ -796,6 +811,9 @@ packages:
     resolution: {integrity: sha512-QVTUovf40zgTqlFVrKA1uXMVvU2QWEFWfAH8Wdc48IxLvrJMQVMBRjuQyUpzZCDkakImib9eVazbWlC6ksWtJw==}
     cpu: [x64]
     os: [win32]
+
+  '@salusoft89/planegcs@1.1.7':
+    resolution: {integrity: sha512-7xTCyQBS8xzRXvB5vXj7vzcGdmPVUZHYgZXrcHBMaBtSE/XMSKH1/OWpdJp8DonbBnuzmjpX8djLta2MFbkhzw==}
 
   '@tweenjs/tween.js@23.1.3':
     resolution: {integrity: sha512-vJmvvwFxYuGnF2axRtPYocag6Clbb5YS7kLL+SO/TeVFzHqDIWrNKYtcsPMibjDx9O+bu+psAy9NKfWklassUA==}
@@ -1649,6 +1667,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.60.4':
     optional: true
+
+  '@salusoft89/planegcs@1.1.7': {}
 
   '@tweenjs/tween.js@23.1.3': {}
 
