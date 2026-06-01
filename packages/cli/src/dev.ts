@@ -14,6 +14,7 @@ import { createServer, type Plugin } from "vite";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve, relative, sep, join, extname } from "node:path";
 import { init } from "@cadcode/kernel/oc";
+import { init as initSolver } from "@cadcode/solver";
 import { runCode } from "@cadcode/runtime/run";
 import {
   serializeRunResult,
@@ -123,7 +124,8 @@ export async function startDev(
 ): Promise<{ url: string; root: string }> {
   const effective = target ?? defaultTarget(process.cwd());
   const { root, initial } = resolveTarget(process.cwd(), effective);
-  await init(); // load OpenCascade once for headless rendering
+  // Load OpenCascade (geometry) and planegcs (constraint solver) once.
+  await Promise.all([init(), initSolver()]);
 
   const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../app");
   const server = await createServer({

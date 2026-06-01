@@ -45,3 +45,40 @@ declare function edges(body: Handle): EdgeQuery;
  *   render(rounded, { cube, face });
  */
 declare function render(primary: Handle, stages?: Record<string, Handle>): void;
+
+// --- 2D sketch constraints (M1) ---
+
+/** A sketch point. */
+declare interface Point {
+  readonly __id: string;
+}
+/** A sketch line with two endpoints. */
+declare interface Line {
+  readonly __id: string;
+  readonly start: Point;
+  readonly end: Point;
+}
+
+/** Create a free sketch point (optionally seeded near x,y). */
+declare function point(x?: number, y?: number): Point;
+/** Create n sketch lines (each with its own start/end points). */
+declare function lines(n: number): Line[];
+/** Make each given pair of points coincident. */
+declare function coincident(...pairs: [Point, Point][]): void;
+/** Make the lines in each group mutually parallel. */
+declare function parallel(...groups: Line[][]): void;
+/** Make two lines perpendicular. */
+declare function perpendicular(a: Line, b: Line): void;
+/** Make all the given lines equal length. */
+declare function equal(lines: Line[]): void;
+/** Constrain a line to be horizontal. */
+declare function horizontal(line: Line): void;
+/** Constrain a line to be vertical. */
+declare function vertical(line: Line): void;
+/** Constrain the distance between two points. */
+declare function distance(a: Point, b: Point, value: number): void;
+/** Bundle constrained entities into a sketch. The result is a region you can
+ *  `extrude` (via `.region`) and also `render` directly. */
+declare function sketch<T extends Record<string, Line>>(
+  entities: T,
+): T & Handle & { region: Handle };
