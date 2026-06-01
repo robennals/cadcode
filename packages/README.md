@@ -9,6 +9,7 @@ result to the **app** viewer in the browser.
 | Package | Role |
 |---|---|
 | [`protocol`](./protocol) | Shared types + render-result serialization. No heavy logic. |
+| [`types`](./types) | Ambient declarations for the global model API, for editor IntelliSense in user projects. |
 | [`core`](./core) | The user-facing modelling API; records an immutable model graph (pure data). |
 | [`kernel`](./kernel) | Geometry primitives over replicad/OpenCascade (extrude, fillet, tessellate). |
 | [`runtime`](./runtime) | Executes bundled user code, walks the graph through the kernel into meshes. |

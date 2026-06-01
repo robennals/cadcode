@@ -1,0 +1,9 @@
+{
+  "name": "@cadcode/examples",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Sample cadcode model files (rendered via `pnpm dev`).",
+  "devDependencies": {
+    "@cadcode/types": "workspace:*"
+  }
+}

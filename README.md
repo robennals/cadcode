@@ -39,8 +39,10 @@ import { roundedBlock } from "./lib/shapes";
 const bracket = roundedBlock(40, 12, 3);
 ```
 
-`./examples` has more, including a self-contained `cube.ts`. Drop a
-`cadcode-globals.d.ts` (see `examples/`) in your own project for editor IntelliSense.
+`./examples` has more, including a self-contained `cube.ts`. For editor
+IntelliSense in your own project, install **`@cadcode/types`** and add it to your
+tsconfig — `{ "compilerOptions": { "types": ["@cadcode/types"] } }` — instead of
+keeping a `.d.ts` in your code folder.
 
 ## How it works
 
@@ -65,6 +67,7 @@ A pnpm monorepo. The packages and how they fit together are described in
 | Package | Role |
 |---|---|
 | `@cadcode/protocol` | Shared types + render-result serialization |
+| `@cadcode/types` | Ambient declarations for the global model API (editor IntelliSense) |
 | `@cadcode/core` | User-facing modelling API; records the model graph |
 | `@cadcode/kernel` | Geometry via replicad/OpenCascade |
 | `@cadcode/runtime` | Executes bundled user code; walks the graph into meshes |

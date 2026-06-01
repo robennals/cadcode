@@ -193,8 +193,10 @@ browser-execution path (esbuild-wasm + the `oc-browser` kernel loader) remains i
 packages for a possible future hosted playground, but the local viewer does not use it.
 
 **Tooling choices:**
-- **Edit in your own editor.** We ship ambient API declarations (`cadcode-globals.d.ts`) so
-  any TS-aware editor gives IntelliSense on the global API.
+- **Edit in your own editor.** We ship ambient API declarations as the
+  **`@cadcode/types`** package; add it to your tsconfig (`"types": ["@cadcode/types"]`)
+  and any TS-aware editor gives IntelliSense on the global API — no `.d.ts` in your
+  code folder.
 - **3D: plain three.js** in a thin wrapper, with OrbitControls + on-screen widgets for
   rotate/pan/zoom/fit and a keyboard fallback.
 - **Transport: Vite's HMR socket** for the live render channel (no extra websocket server).
