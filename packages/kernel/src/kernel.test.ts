@@ -9,6 +9,7 @@ import {
   filletAll,
   edgeCount,
   tessellate,
+  regionFaceMesh,
 } from "./kernel";
 
 describe("kernel box", () => {
@@ -52,5 +53,12 @@ describe("kernel fillet + mesh", () => {
     expect(mesh.indices.length).toBeGreaterThan(0);
     expect(mesh.positions.length % 3).toBe(0);
     expect(mesh.normals.length).toBe(mesh.positions.length);
+  });
+
+  it("meshes a 2D region as a flat face", () => {
+    const mesh = regionFaceMesh("f", 20, 20);
+    expect(mesh.positions.length).toBeGreaterThan(0);
+    expect(mesh.indices.length).toBeGreaterThan(0);
+    expect(mesh.positions.length % 3).toBe(0);
   });
 });

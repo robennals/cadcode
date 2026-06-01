@@ -2,9 +2,11 @@
 // file in the project; clicking one renders it in the main area. The browser
 // never edits or executes models — you edit files in your own editor. This app
 // tells the `cadcode dev` server which file to render (chosen by the ?file= URL
-// param or the sidebar) and displays the meshes + hierarchy the server
-// live-pushes over Vite's HMR socket whenever that file (or its imports) change.
-// Rendering is lazy: only the selected file is ever built.
+// param or the sidebar) and displays the render stages the server live-pushes
+// over Vite's HMR socket whenever that file (or its imports) change. The model's
+// render(primary, { ...stages }) call decides the primary view plus the named
+// stages you can click to view instead. Rendering is lazy: only the selected
+// file is built.
 import { useEffect, useRef, useState } from "react";
 import {
   deserializeRunResult,
@@ -15,7 +17,7 @@ import {
 } from "@cadcode/protocol";
 import { Viewport } from "./Viewport";
 
-const EMPTY: RunResult = { hierarchy: [], meshes: [], errors: [] };
+const EMPTY: RunResult = { stages: [], primary: null, errors: [] };
 
 type Status = "connecting" | "live" | "no-server";
 
@@ -113,7 +115,23 @@ export function App() {
       }}
     >
       <Sidebar files={files} active={file} status={status} onPick={pickFile} />
-      <Main file={file} status={status} result={result} hasFiles={files.length > 0} />
+      {status === "no-server" ? (
+        <Placeholder
+          title="No cadcode server"
+          body="Run `cadcode dev <file-or-dir>` in your project, then reload."
+        />
+      ) : !file ? (
+        <Placeholder
+          title="Select a model file"
+          body={
+            files.length > 0
+              ? "Pick a file from the sidebar to render its model."
+              : "No .ts model files found in this project."
+          }
+        />
+      ) : (
+        <FileView key={file} file={file} status={status} result={result} />
+      )}
     </div>
   );
 }
@@ -196,37 +214,23 @@ function Sidebar({
   );
 }
 
-function Main({
+function FileView({
   file,
   status,
   result,
-  hasFiles,
 }: {
-  file: string | null;
+  file: string;
   status: Status;
   result: RunResult;
-  hasFiles: boolean;
 }) {
-  if (status === "no-server") {
-    return (
-      <Placeholder
-        title="No cadcode server"
-        body="Run `cadcode dev <file-or-dir>` in your project, then reload."
-      />
-    );
-  }
-  if (!file) {
-    return (
-      <Placeholder
-        title="Select a model file"
-        body={
-          hasFiles
-            ? "Pick a file from the sidebar to render its model."
-            : "No .ts model files found in this project."
-        }
-      />
-    );
-  }
+  const [selected, setSelected] = useState<string | null>(result.primary);
+  const names = result.stages.map((s) => s.name);
+  // Self-heal: if the selected stage vanished (after a reload), fall back to the
+  // primary; this also preserves your selection across live-reloads.
+  const active = selected && names.includes(selected) ? selected : result.primary;
+  const stage = result.stages.find((s) => s.name === active) ?? null;
+  const meshes = stage ? [stage.mesh] : [];
+
   return (
     <div
       style={{
@@ -267,11 +271,16 @@ function Main({
         >
           {file}
         </span>
+        {stage && (
+          <span style={{ color: "#9aa4ad", fontFamily: "monospace", flexShrink: 0 }}>
+            › {stage.name} <span style={{ color: "#6b7785" }}>({stage.op})</span>
+          </span>
+        )}
         <span style={{ flex: 1 }} />
         <StatusDot status={status} hasErrors={result.errors.length > 0} withText />
       </div>
 
-      <Viewport key={file} meshes={result.meshes} />
+      <Viewport key={file} meshes={meshes} />
 
       <div style={{ minWidth: 0 }}>
         {result.errors.length > 0 ? (
@@ -296,27 +305,50 @@ function Main({
           <div data-testid="errors" style={{ display: "none" }} />
         )}
         <div
-          data-testid="tree"
+          data-testid="stages"
           style={{
-            maxHeight: 150,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            maxHeight: 110,
             overflow: "auto",
             background: "#252526",
-            color: "#ccc",
-            fontFamily: "monospace",
-            fontSize: 12,
-            padding: 6,
+            padding: "8px 10px",
             borderTop: "1px solid #333",
           }}
         >
-          {result.hierarchy.length === 0 ? (
-            <span style={{ color: "#777" }}>No bodies yet.</span>
+          {result.stages.length === 0 ? (
+            <span style={{ color: "#777", font: "12px monospace" }}>
+              No stages — call render(...) in your model.
+            </span>
           ) : (
-            result.hierarchy.map((n) => (
-              <div key={n.id} style={{ opacity: n.alive ? 1 : 0.5 }}>
-                {n.alive ? "● " : "○ "}
-                {n.label} <span style={{ color: "#666" }}>{n.id}</span>
-              </div>
-            ))
+            result.stages.map((s) => {
+              const isActive = s.name === active;
+              return (
+                <button
+                  key={s.name}
+                  data-testid={`stage-${s.name}`}
+                  onClick={() => setSelected(s.name)}
+                  aria-pressed={isActive}
+                  title={`View ${s.name} (${s.op})`}
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 6,
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${isActive ? "#4f9dde" : "#3a3a3a"}`,
+                    background: isActive ? "#2b4a66" : "#1e1e1e",
+                    color: isActive ? "#fff" : "#bbb",
+                    font: "12px monospace",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span>{s.name}</span>
+                  <span style={{ color: isActive ? "#bcd9f5" : "#6b7785" }}>{s.op}</span>
+                </button>
+              );
+            })
           )}
         </div>
       </div>

@@ -4,10 +4,12 @@ Ties the other packages together for one model evaluation. Given a user source
 string and a compile function, it:
 
 1. compiles the TypeScript to CommonJS,
-2. executes it with the `@cadcode/core` API injected as globals
-   (`rect`, `extrude`, `fillet`, `edges`, `dimension`),
-3. walks the resulting model graph through `@cadcode/kernel`, producing a mesh
-   for every alive body plus a serialized hierarchy.
+2. executes it (in a `vm` context with a wall-clock timeout) with the
+   `@cadcode/core` API injected as globals (`rect`, `extrude`, `fillet`, `edges`,
+   `dimension`, `render`),
+3. walks the resulting model graph through `@cadcode/kernel`, meshing each
+   `render()` stage (a body via tessellation, a region as a flat face) into the
+   `RunResult.stages`.
 
 All errors — compile, runtime, or geometry — are caught and returned in the
 `RunResult`, never thrown, so a bad edit can't crash the host.

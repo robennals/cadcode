@@ -217,9 +217,12 @@ Five core concepts, each a traced node in the hierarchy:
    `subtract`, `intersect`). Each takes solved geometry + selectors, passes through its
    `sources` and placement transforms (§2.6), and returns a new body.
 
-**What renders:** every body that is *alive* — created and not consumed as input to another
-operator (so the final `fillet` shows, not the raw cube it ate). `show(x)` / `hide(x)`
-override. Selecting a sketch/body in the tree highlights it in the viewport and vice-versa.
+**What renders (revised):** a model declares this explicitly with
+`render(primary, { ...stages })`. The viewport shows the **primary** object; the **stage
+panel** lists the named stages (with their type — `rect`/`extrude`/`fillet`) so you can click
+one to view it instead. A stage can be a body (shown as a solid) or a region/sketch (shown as
+a flat face). If a model omits `render()`, the viewer falls back to the last alive body. (The
+earlier "render every alive body" rule is superseded by `render()`.)
 
 **The hierarchy is the traced object graph** — every sketch, entity, constraint, body, and
 operation is a node with parent/child links. There is no separate model format; the objects
@@ -248,17 +251,19 @@ export const rounded = fillet(cube, edges(cube).coincidentWith(sq.left), 3)
 
 ```ts
 const face = rect(20, 20)                       // explicit geometry, no constraints
-export const cube = extrude(face, 20)
-export const rounded = fillet(cube, edges(cube).all, 3)
+const cube = extrude(face, 20)
+const rounded = fillet(cube, edges(cube).all, 3)
+render(rounded, { cube, face })                 // primary + clickable stages
 ```
 
 ## 5. Execution, reactivity, rendering (revised)
 
 - **Reactivity:** the server watches the selected file and its import graph and re-renders on
   save (lazy — only the viewed file). Cache heavy ops by input-hash (M4).
-- **Rendering:** kernel tessellates each alive body to a mesh; the server serializes meshes +
-  hierarchy and pushes them over the HMR socket; the browser rebuilds typed arrays and
-  three.js renders them. The sidebar lists files; the tree panel renders the hierarchy.
+- **Rendering:** the kernel meshes each `render()` stage (a body via tessellation, a region
+  as a flat face); the server serializes the stages and pushes them over the HMR socket; the
+  browser rebuilds typed arrays and three.js renders the selected stage. The sidebar lists
+  files; the stage panel lists the stages and switches the view on click.
 - **Error handling:**
   - Bundle/compile errors (missing import, syntax) → shown in the viewer's error panel.
   - Runtime exceptions during model execution → error panel, last good model stays on screen.

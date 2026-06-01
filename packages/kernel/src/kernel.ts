@@ -44,11 +44,28 @@ export function dispose(solid: Solid): void {
   }
 }
 
-export function tessellate(id: string, solid: Solid): BodyMesh {
+function meshOf(id: string, shape: Solid): BodyMesh {
   // replicad mesh() returns faceted { vertices, triangles, normals } as number[].
-  const m = (solid as any).mesh({ tolerance: 0.1, angularTolerance: 0.3 });
-  const positions = new Float32Array(m.vertices);
-  const normals = new Float32Array(m.normals);
-  const indices = new Uint32Array(m.triangles);
-  return { id, positions, normals, indices };
+  const m = (shape as any).mesh({ tolerance: 0.1, angularTolerance: 0.3 });
+  return {
+    id,
+    positions: new Float32Array(m.vertices),
+    normals: new Float32Array(m.normals),
+    indices: new Uint32Array(m.triangles),
+  };
+}
+
+export function tessellate(id: string, solid: Solid): BodyMesh {
+  return meshOf(id, solid);
+}
+
+/** Mesh a 2D rectangular region as a flat face on the XY plane (so a sketch can
+ *  be shown as a render stage). The temporary face is disposed before returning. */
+export function regionFaceMesh(id: string, width: number, height: number): BodyMesh {
+  const face = (drawRectangle(width, height) as any).sketchOnPlane("XY").face();
+  try {
+    return meshOf(id, face);
+  } finally {
+    dispose(face);
+  }
 }

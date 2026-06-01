@@ -3,13 +3,14 @@
 The browser **viewer** (Vite + React). It does not edit or execute models — you
 edit model files in your own editor; this app renders them. It connects to the
 `@cadcode/cli` dev server, tells it which file to render (chosen by the `?file=`
-URL param or the sidebar), and displays the meshes + hierarchy the server
-live-pushes over Vite's HMR socket whenever the file or its imports change.
+URL param or the sidebar), and displays the render stages the server live-pushes
+over Vite's HMR socket whenever the file or its imports change.
 
 Layout (Storybook-style): a sidebar lists every model file in the project; the
 main area shows the selected file's name, the 3D viewport (with rotate/pan/zoom/
-fit controls), and a hierarchy tree. The current file is also shown in the tab
-title. Rendering is lazy — only the selected file is built.
+fit controls), and a stage panel listing the model's `render()` stages (click one
+to view it). The current file is also shown in the tab title. Rendering is lazy —
+only the selected file is built.
 
 ## Files
 

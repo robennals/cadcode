@@ -28,25 +28,31 @@ describe("isBodyNode", () => {
 });
 
 describe("serialize/deserialize RunResult", () => {
-  it("round-trips meshes through JSON-safe arrays back to typed arrays", () => {
+  it("round-trips stage meshes through JSON-safe arrays back to typed arrays", () => {
     const original: RunResult = {
-      hierarchy: [{ id: "a", op: "extrude", label: "extrude", alive: true, children: [] }],
+      primary: "result",
       errors: [],
-      meshes: [
+      stages: [
         {
-          id: "a",
-          positions: new Float32Array([1, 2, 3, 4, 5, 6]),
-          normals: new Float32Array([0, 0, 1, 0, 0, 1]),
-          indices: new Uint32Array([0, 1, 2]),
+          name: "result",
+          op: "extrude",
+          mesh: {
+            id: "a",
+            positions: new Float32Array([1, 2, 3, 4, 5, 6]),
+            normals: new Float32Array([0, 0, 1, 0, 0, 1]),
+            indices: new Uint32Array([0, 1, 2]),
+          },
         },
       ],
     };
     const wire = JSON.parse(JSON.stringify(serializeRunResult(original)));
     const back = deserializeRunResult(wire);
-    expect(back.hierarchy).toEqual(original.hierarchy);
-    expect(back.meshes[0].positions).toBeInstanceOf(Float32Array);
-    expect(Array.from(back.meshes[0].positions)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(back.meshes[0].indices).toBeInstanceOf(Uint32Array);
-    expect(Array.from(back.meshes[0].indices)).toEqual([0, 1, 2]);
+    expect(back.primary).toBe("result");
+    expect(back.stages[0].name).toBe("result");
+    expect(back.stages[0].op).toBe("extrude");
+    expect(back.stages[0].mesh.positions).toBeInstanceOf(Float32Array);
+    expect(Array.from(back.stages[0].mesh.positions)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(back.stages[0].mesh.indices).toBeInstanceOf(Uint32Array);
+    expect(Array.from(back.stages[0].mesh.indices)).toEqual([0, 1, 2]);
   });
 });

@@ -11,9 +11,33 @@ async function meshCount(page: import("@playwright/test").Page) {
 test("renders the initial file (built from an import) as one mesh", async ({ page }) => {
   await page.goto("/");
   await expect.poll(() => meshCount(page), { timeout: 60000 }).toBe(1);
-  await expect(page.getByTestId("tree")).toContainText("fillet");
+  // The stage panel lists the render() stages with their types.
+  await expect(page.getByTestId("stages")).toContainText("result");
+  await expect(page.getByTestId("stages")).toContainText("fillet");
   // No visible error panel.
   await expect(page.getByTestId("errors")).toBeHidden();
+});
+
+test("lists render() stages and switches the view when one is clicked", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect.poll(() => meshCount(page), { timeout: 60000 }).toBe(1);
+
+  // box.ts calls render(rounded, { block: part }) -> stages: result, block.
+  const result = page.getByTestId("stage-result");
+  const block = page.getByTestId("stage-block");
+  await expect(result).toBeVisible();
+  await expect(block).toContainText("extrude");
+  await expect(result).toHaveAttribute("aria-pressed", "true");
+
+  // Click the "block" stage -> it becomes active, the toolbar reflects it, and
+  // the viewport still shows a (different) single mesh.
+  await block.click();
+  await expect(block).toHaveAttribute("aria-pressed", "true");
+  await expect(result).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("file-name-current").locator("..")).toContainText("extrude");
+  await expect.poll(() => meshCount(page)).toBe(1);
 });
 
 test("shows the rendered file name in the toolbar, URL, and tab title", async ({ page }) => {
@@ -75,10 +99,10 @@ test("layout stays on-screen on a small window", async ({ page }) => {
   expect(overflow.x).toBeLessThanOrEqual(1);
   expect(overflow.y).toBeLessThanOrEqual(1);
 
-  const tree = await page.getByTestId("tree").boundingBox();
-  expect(tree).not.toBeNull();
-  expect(tree!.x + tree!.width).toBeLessThanOrEqual(W + 1);
-  expect(tree!.y + tree!.height).toBeLessThanOrEqual(H + 1);
+  const stages = await page.getByTestId("stages").boundingBox();
+  expect(stages).not.toBeNull();
+  expect(stages!.x + stages!.width).toBeLessThanOrEqual(W + 1);
+  expect(stages!.y + stages!.height).toBeLessThanOrEqual(H + 1);
 
   const fit = await page.getByRole("button", { name: "Fit view" }).boundingBox();
   expect(fit).not.toBeNull();
