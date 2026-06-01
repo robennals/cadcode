@@ -24,5 +24,6 @@ export {
   shellBody,
   chamferAll,
   booleanOp,
+  translateSolid,
 } from "./ops";
 export type { ProfileSpec } from "./ops";

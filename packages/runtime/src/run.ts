@@ -22,6 +22,7 @@ import {
   shellBody,
   chamferAll,
   booleanOp,
+  translateSolid,
   filletAll,
   tessellate,
   regionFaceMesh,
@@ -111,6 +112,8 @@ function evaluate(model: Model, solids: Map<string, Solid>): void {
       solids.set(id, chamferAll(need(node.body, "chamfer"), node.distance));
     } else if (node.op === "boolean") {
       solids.set(id, booleanOp(need(node.a, "boolean"), need(node.b, "boolean"), node.kind));
+    } else if (node.op === "move") {
+      solids.set(id, translateSolid(need(node.body, "move"), node.offset));
     }
   }
 }
@@ -165,6 +168,7 @@ export function runCode(
     union: builder.union,
     subtract: builder.subtract,
     intersect: builder.intersect,
+    move: builder.move,
     edges: builder.edges,
     dimension,
     render: builder.render,

@@ -46,6 +46,7 @@ export interface Builder {
   union(a: Handle, b: Handle): Handle;
   subtract(a: Handle, b: Handle): Handle;
   intersect(a: Handle, b: Handle): Handle;
+  move(body: Handle, offset: [number, number, number]): Handle;
   edges(body: Handle): EdgeQuery;
   /** Declare what to render: the primary object plus named, viewable stages. */
   render(primary: Handle, stages?: Record<string, Handle>): void;
@@ -217,6 +218,18 @@ export function createBuilder(): Builder {
     },
     intersect(a, b) {
       return boolean("intersect", a, b);
+    },
+    move(body, offset) {
+      return add(
+        {
+          id: nextId("move"),
+          op: "move",
+          body: body.__id,
+          offset,
+          sources: [body.__id],
+        },
+        [body.__id],
+      );
     },
     extrude(region, height) {
       return add(

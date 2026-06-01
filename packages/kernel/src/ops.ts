@@ -105,3 +105,11 @@ export function booleanOp(a: Solid, b: Solid, kind: "union" | "subtract" | "inte
       return (a as any).intersect(b);
   }
 }
+
+/** Translate a solid by [dx, dy, dz]. */
+export function translateSolid(
+  solid: Solid,
+  offset: [number, number, number],
+): Solid {
+  return (solid as any).translate(offset);
+}

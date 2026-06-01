@@ -96,6 +96,15 @@ export interface BooleanNode {
   sources: string[];
 }
 
+/** Translate a body by an offset. */
+export interface MoveNode {
+  id: string;
+  op: "move";
+  body: string;
+  offset: [number, number, number];
+  sources: string[];
+}
+
 export type RegionNode = RectNode | CircleNode | PolygonNode | SketchNode;
 export type BodyNode =
   | ExtrudeNode
@@ -104,7 +113,8 @@ export type BodyNode =
   | LoftNode
   | ShellNode
   | ChamferNode
-  | BooleanNode;
+  | BooleanNode
+  | MoveNode;
 export type Node = RegionNode | BodyNode;
 
 // --- Sketch constraints (M1) ---
@@ -182,6 +192,7 @@ const BODY_OPS = new Set([
   "shell",
   "chamfer",
   "boolean",
+  "move",
 ]);
 
 export function isBodyNode(node: Node): node is BodyNode {
