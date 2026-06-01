@@ -33,8 +33,79 @@ export interface FilletNode {
   sources: string[];
 }
 
-export type BodyNode = ExtrudeNode | FilletNode;
-export type Node = RectNode | BodyNode | SketchNode;
+// --- More primitives + operators ---
+
+/** A circle region (centered at the origin on XY). */
+export interface CircleNode {
+  id: string;
+  op: "circle";
+  radius: number;
+}
+
+/** A region defined by explicit closed-polygon 2D points. */
+export interface PolygonNode {
+  id: string;
+  op: "polygon";
+  points: [number, number][];
+}
+
+/** Revolve a profile region around the Z axis (profile points are radius/height). */
+export interface RevolveNode {
+  id: string;
+  op: "revolve";
+  region: string;
+  angle: number; // degrees
+  sources: string[];
+}
+
+/** Loft through a stack of regions, each at its z height. */
+export interface LoftNode {
+  id: string;
+  op: "loft";
+  regions: string[];
+  heights: number[];
+  sources: string[];
+}
+
+/** Hollow a body to a wall thickness (open-top vessel). */
+export interface ShellNode {
+  id: string;
+  op: "shell";
+  body: string;
+  thickness: number;
+  sources: string[];
+}
+
+/** Bevel the selected edges of a body. */
+export interface ChamferNode {
+  id: string;
+  op: "chamfer";
+  body: string;
+  edges: EdgeSelector;
+  distance: number;
+  sources: string[];
+}
+
+/** A boolean of two bodies. */
+export interface BooleanNode {
+  id: string;
+  op: "boolean";
+  kind: "union" | "subtract" | "intersect";
+  a: string;
+  b: string;
+  sources: string[];
+}
+
+export type RegionNode = RectNode | CircleNode | PolygonNode | SketchNode;
+export type BodyNode =
+  | ExtrudeNode
+  | FilletNode
+  | RevolveNode
+  | LoftNode
+  | ShellNode
+  | ChamferNode
+  | BooleanNode;
+export type Node = RegionNode | BodyNode;
 
 // --- Sketch constraints (M1) ---
 
@@ -103,8 +174,18 @@ export interface Model {
   render?: RenderDecl;
 }
 
+const BODY_OPS = new Set([
+  "extrude",
+  "fillet",
+  "revolve",
+  "loft",
+  "shell",
+  "chamfer",
+  "boolean",
+]);
+
 export function isBodyNode(node: Node): node is BodyNode {
-  return node.op === "extrude" || node.op === "fillet";
+  return BODY_OPS.has(node.op);
 }
 
 /** A tessellated body sent to the viewport. Arrays are transferable. */
