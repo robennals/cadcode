@@ -38,17 +38,13 @@ function evaluate(model: Model): Map<string, Solid> {
   return solids;
 }
 
-export async function run(
-  source: string,
-  opts: { compile: CompileFn },
-): Promise<RunResult> {
-  let code: string;
-  try {
-    code = await opts.compile(source);
-  } catch (e) {
-    return { hierarchy: [], meshes: [], errors: [String((e as Error).message ?? e)] };
-  }
-
+/**
+ * Execute already-compiled CommonJS model code (the user's TS, transformed or
+ * bundled to CJS) with the core API injected as globals, then walk the graph
+ * into meshes. The CLI uses this after bundling an entry file + its imports;
+ * `run` below is the single-file convenience wrapper.
+ */
+export function runCode(code: string): RunResult {
   const builder = createBuilder();
   const dimension = () => {
     throw new Error("dimension() requires the constraint solver (added in M1)");
@@ -83,4 +79,18 @@ export async function run(
       errors: [String((e as Error).message ?? e)],
     };
   }
+}
+
+/** Single-file convenience: compile a source string, then run it. */
+export async function run(
+  source: string,
+  opts: { compile: CompileFn },
+): Promise<RunResult> {
+  let code: string;
+  try {
+    code = await opts.compile(source);
+  } catch (e) {
+    return { hierarchy: [], meshes: [], errors: [String((e as Error).message ?? e)] };
+  }
+  return runCode(code);
 }

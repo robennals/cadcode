@@ -3,6 +3,27 @@
 **Status:** Design / spec
 **Date:** 2026-05-31
 
+> **Revision (2026-05-31, during M0): viewer-only architecture.** The UI is no
+> longer a browser code editor. You edit model files in **your own editor** and
+> version-control them in git; the cadcode dev server renders them and the
+> browser is a **live viewer**. This is the Storybook model: a dev server with an
+> index of "model files" (like Storybook's story files), rendering the selected
+> one on demand and hot-reloading on change. Concretely:
+> - **Edit in your own editor.** No Monaco, no in-browser execution.
+> - **Model files can `import` other files** (and npm libraries) — the server
+>   bundles the entry file + its import graph with esbuild before running it.
+> - **The server renders headlessly** (the Node `runtime` + kernel we built) and
+>   **live-pushes meshes to the browser** over Vite's HMR socket. Rendering is
+>   **lazy** — only the file you're viewing is ever built.
+> - **The URL selects the file** (`?file=<path>`), and a sidebar lists every
+>   model file in the project (click to view). The current file is shown in the
+>   toolbar and the browser tab title.
+> - **Auto-refresh:** saving a model file (or any file it imports) re-renders
+>   automatically, no page reload.
+>
+> Sections 2.5, 2.7, 3 and 4 below are updated to match; the constraint/geometry
+> design (2.1–2.4, 2.6) is unchanged.
+
 ## 1. Vision
 
 cadcode is a programming environment for CAD, in the spirit of OpenSCAD but with two
@@ -79,14 +100,21 @@ viewport). Nested sketches defer to their enclosing sketch's solve.
 A fully **declarative escape hatch** exists for sketches that don't want the solver:
 `rect`, `polyline`, `circle` with explicit coordinates produce geometry directly, no solver.
 
-### 2.5 Real TypeScript, whole-script re-run in a worker
+### 2.5 Real TypeScript, bundled and run on the server (revised)
 
-User code is genuine TypeScript. It is compiled (`esbuild`) and executed in a sandboxed
-worker with our API injected. The API functions record the objects the user creates; the
-resulting object graph **is** the model hierarchy. On each edit we re-run the **whole**
-script (debounced). Heavy OpenCascade operations are cached by input-hash (a later
-milestone) so re-runs stay cheap. We deliberately do **not** attempt incremental
-re-evaluation — it is far more complex and premature.
+User code is genuine TypeScript. The **dev server** bundles the selected model file *and its
+imports* (and any npm libraries) with esbuild, then executes the bundle with our API injected
+as globals. The API functions record the objects the user creates; the resulting object graph
+**is** the model hierarchy. Execution is **whole-program** (no incremental re-evaluation — far
+more complex and premature). Heavy OpenCascade operations will be cached by input-hash (a
+later milestone) so re-runs stay cheap.
+
+Execution runs **headlessly in Node** (inside `cadcode dev`), reusing the exact `runtime` +
+`kernel` path that the tests cover. The browser receives only the resulting meshes + hierarchy
+and renders them — it never compiles or executes models. (A browser-side execution path
+exists in `kernel`/`runtime` for a possible future hosted playground, but is not used by the
+local viewer.) Re-execution is triggered by **file changes on disk**: the server watches the
+entry file and every file in its import graph and re-renders on save.
 
 ### 2.6 Selection is a fresh query in terms of sketches, not persistent IDs
 
@@ -116,23 +144,29 @@ a boolean's cut edges) cannot be anchored to a sketch. Those are selected via th
 **operation's own handle** (e.g. `fillet(...)` returns a handle whose new faces/edges can be
 queried) or via pure geometric predicates. This case also fails loudly rather than wrongly.
 
-### 2.7 Distribution: a CLI with `dev` and `export`; no Electron
+### 2.7 Distribution: a CLI with `dev` and `export`; no Electron (revised)
 
-cadcode ships as a single npm package exposing a CLI:
+cadcode ships as a single npm package exposing a CLI. It is a **viewer/dev-server**, not an
+editor — the Storybook model:
 
-- **`cadcode dev`** — run inside your repo (like `vite`/`next dev`). Starts a local Node
-  server that serves the React app, exposes the repo's `.ts` files over a small
-  read/write/watch API, and opens the browser. You pick a file; the browser worker executes
-  it and renders; Monaco edits save back to disk through the server. **Files are normal files
-  in your git repo** — cadcode never owns storage; you `git commit`/`push` as usual.
+- **`cadcode dev [dir|file]`** — run inside your repo (like `vite`/`storybook`). With no
+  argument it serves the current directory (our repo's `pnpm dev` prefers an `./examples`
+  folder); given a directory it serves that project; given a file it opens that file. It:
+  - serves the viewer app and an index of the project's `.ts` model files (a sidebar; the URL
+    `?file=<path>` selects one);
+  - bundles the selected file + its imports, runs it headlessly through `runtime` + `kernel`,
+    and **live-pushes** the meshes + hierarchy to the browser over Vite's HMR socket;
+  - **watches** the file and its imports and re-renders on save (auto-refresh).
+  Rendering is **lazy** — only the file currently being viewed is built. **Files are normal
+  files in your git repo**; cadcode never owns storage, and you edit them in your own editor.
 - **`cadcode export model.ts -o model.stl`** (also `.step`, `.3mf`) — runs the *same*
-  `runtime` + `core` + `kernel` headlessly in Node to produce exportable files for 3D
-  printing, other CAD tools, or CI.
+  `runtime` + `kernel` headlessly in Node to produce exportable files for 3D printing, other
+  CAD tools, or CI. (Stub until M4.)
 
-Not Electron: it bundles Chromium, complicates distribution, and buys nothing here — users
-are TS developers comfortable with `npx`, the kernel runs in a normal browser, and a
-desktop/hosted app would fight against "files live in your own git repo." An Electron or
-hosted wrapper can be added later over the identical stack.
+Not Electron: it bundles Chromium, complicates distribution, and buys nothing here — users are
+TS developers comfortable with `npx`, and a desktop/hosted app would fight against "files live
+in your own git repo." An Electron or hosted wrapper can be added later over the identical
+stack.
 
 ## 3. Architecture
 
@@ -143,24 +177,27 @@ clean interface.
 |---|---|---|
 | `@cadcode/kernel` | Geometry ops + meshing + the geometric-query toolkit, wrapping replicad/OCCT behind a small interface | Worker / Node |
 | `@cadcode/core` | The user-facing API (`sketch`, `lines`, `coincident`, `dimension`, `extrude`, `fillet`, selectors…) plus the object-graph tracer that records what the user builds. The 2D solver lives here. | Worker / Node |
-| `@cadcode/runtime` | Compiles user TS (esbuild), executes it with `core`'s API injected, collects the model graph, asks `kernel` to tessellate, emits meshes + hierarchy | Worker / Node |
-| `@cadcode/app` | Vite + React shell: Monaco editor (left), three.js viewport (right), hierarchy tree panel; owns the worker | Browser (main) |
-| `@cadcode/cli` | `cadcode dev` (server + serves app, file watch/sync) and `cadcode export` (headless geometry → STL/STEP/3MF) | Node |
-| `@cadcode/protocol` | Shared types for worker↔main and server↔client messages | Shared |
+| `@cadcode/runtime` | Executes (pre-bundled) user code with `core`'s API injected, collects the model graph, asks `kernel` to tessellate, emits meshes + hierarchy. `runCode` runs already-bundled code; `run` is a single-file convenience. | Node (and Worker) |
+| `@cadcode/app` | Vite + React **viewer**: file sidebar, three.js viewport with nav controls, hierarchy tree; receives renders over the HMR socket. No editor, no execution. | Browser |
+| `@cadcode/cli` | `cadcode dev` — serves the app, lists/reads files, bundles (esbuild) + runs the selected file headlessly, watches its imports, and pushes renders. `cadcode export` (M4). | Node |
+| `@cadcode/protocol` | Shared types + the (de)serialization for sending render results over the socket. | Shared |
 
-**Data flow (one cycle):** editor text → (debounced) → worker → esbuild compile → execute
-with injected API → traced model graph → kernel tessellates each alive body → transfer mesh
-typed-arrays + hierarchy JSON to the main thread → three.js renders meshes and the tree
-panel renders the hierarchy.
+**Data flow (one cycle, revised):** browser selects a file (URL/sidebar) → sends `select`
+over the HMR socket → server bundles the entry + imports (esbuild) → executes through
+`runtime` + `kernel` in Node → serializes meshes + hierarchy → `server.ws.send` → browser
+deserializes to typed arrays → three.js renders, sidebar/tree update. A file-watcher on the
+import graph repeats this on every save.
 
-The browser worker and the Node CLI are two thin frontends over the **same**
-`runtime → core → kernel` stack. The only environment differences are esbuild-wasm (browser)
-vs native esbuild (Node), and Web Worker vs `worker_thread`.
+The CLI is the primary frontend over the `runtime → core → kernel` stack (in Node). A
+browser-execution path (esbuild-wasm + the `oc-browser` kernel loader) remains in the
+packages for a possible future hosted playground, but the local viewer does not use it.
 
 **Tooling choices:**
-- **Editor: Monaco**, fed `core`'s `.d.ts` so users get real TS IntelliSense on the API.
-- **3D: plain three.js** in a thin wrapper (geometry is fully replaced each run, so
-  react-three-fiber's reconciler buys little; it can be reconsidered if the UI grows).
+- **Edit in your own editor.** We ship ambient API declarations (`cadcode-globals.d.ts`) so
+  any TS-aware editor gives IntelliSense on the global API.
+- **3D: plain three.js** in a thin wrapper, with OrbitControls + on-screen widgets for
+  rotate/pan/zoom/fit and a keyboard fallback.
+- **Transport: Vite's HMR socket** for the live render channel (no extra websocket server).
 
 ## 4. The API / language model
 
@@ -213,33 +250,36 @@ export const cube = extrude(face, 20)
 export const rounded = fillet(cube, edges(cube).all, 3)
 ```
 
-## 5. Execution, reactivity, rendering
+## 5. Execution, reactivity, rendering (revised)
 
-- **Reactivity:** debounced whole-script re-run on edit; cache heavy ops by input-hash (M4).
-- **Rendering:** kernel tessellates each alive body to a mesh; typed arrays are transferred
-  (not copied) to the main thread; three.js renders them. The tree panel renders the
-  hierarchy JSON.
+- **Reactivity:** the server watches the selected file and its import graph and re-renders on
+  save (lazy — only the viewed file). Cache heavy ops by input-hash (M4).
+- **Rendering:** kernel tessellates each alive body to a mesh; the server serializes meshes +
+  hierarchy and pushes them over the HMR socket; the browser rebuilds typed arrays and
+  three.js renders them. The sidebar lists files; the tree panel renders the hierarchy.
 - **Error handling:**
-  - TS compile errors → inline in Monaco.
-  - Runtime exceptions → a console panel, with stacks mapped back to user source.
-  - Solver failures (over/under-constrained, non-convergence) → diagnostics, while the last
-    good model stays on screen.
+  - Bundle/compile errors (missing import, syntax) → shown in the viewer's error panel.
+  - Runtime exceptions during model execution → error panel, last good model stays on screen.
+  - Solver failures (over/under-constrained, non-convergence) → diagnostics (M1+).
   - Selection that resolves to an empty/unexpected set → diagnostic on the operation.
 
 ## 6. Milestone ladder
 
 Each milestone is independently playable and builds on the previous one.
 
-### M0 — End-to-end spine (no solver)
-*Goal: edit TS, see a live filletable cube.*
+### M0 — End-to-end spine (no solver) — *delivered, viewer-only*
+*Goal: edit a model file in your own editor, see it render live; files can import files.*
 - Monorepo scaffold (six packages).
 - `kernel`: wrap replicad for face-from-region, `extrude`, `fillet`, tessellate-to-mesh; the
   beginnings of the geometric-query toolkit (`edges(body).all`).
-- `core`: declarative API (`rect`/`polyline`/`circle`, operators, object-graph tracer).
-- `runtime`: compile + execute user TS, collect the graph, tessellate.
-- `app`: Monaco + three.js viewport + worker wiring.
-- `cli`: minimal `cadcode dev` (serve app over one repo file).
-- *Demo:* the M0 escape-hatch snippet; change the extrude height, watch it update live.
+- `core`: declarative API (`rect`, operators, object-graph tracer).
+- `runtime`: `runCode` executes bundled user code, collects the graph, tessellates.
+- `app`: three.js viewport with nav controls + hierarchy tree + file sidebar; receives
+  renders over the HMR socket (no editor, no in-browser execution).
+- `cli`: `cadcode dev [dir|file]` — file index/URL selection, esbuild bundle (imports!),
+  headless render, file-watch live reload; `export` stub.
+- *Demo:* `pnpm dev` renders `examples/`; edit `examples/bracket.ts` (which imports
+  `lib/shapes.ts`) in your editor and watch the render refresh.
 
 ### M1 — 2D constraint solver
 *Goal: the `square()`-via-constraints example.*

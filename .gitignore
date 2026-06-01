@@ -4,3 +4,4 @@ dist/
 .playwright/
 test-results/
 playwright-report/
+packages/app/tests/fixtures/_*.ts

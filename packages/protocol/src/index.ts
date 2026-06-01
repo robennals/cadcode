@@ -76,3 +76,58 @@ export type WorkerRequest = { type: "run"; source: string };
 export type WorkerResponse =
   | { type: "result"; result: RunResult }
   | { type: "error"; message: string };
+
+// --- Transport (server -> viewer) ---
+// Typed arrays don't survive JSON, so render results are serialized with plain
+// number[] arrays for sending over the HMR socket, then rebuilt into typed
+// arrays in the browser.
+
+export interface SerializedMesh {
+  id: string;
+  positions: number[];
+  normals: number[];
+  indices: number[];
+}
+
+export interface SerializedRunResult {
+  hierarchy: HierarchyNode[];
+  meshes: SerializedMesh[];
+  errors: string[];
+}
+
+export function serializeRunResult(r: RunResult): SerializedRunResult {
+  return {
+    hierarchy: r.hierarchy,
+    errors: r.errors,
+    meshes: r.meshes.map((m) => ({
+      id: m.id,
+      positions: Array.from(m.positions),
+      normals: Array.from(m.normals),
+      indices: Array.from(m.indices),
+    })),
+  };
+}
+
+export function deserializeRunResult(s: SerializedRunResult): RunResult {
+  return {
+    hierarchy: s.hierarchy,
+    errors: s.errors,
+    meshes: s.meshes.map((m) => ({
+      id: m.id,
+      positions: new Float32Array(m.positions),
+      normals: new Float32Array(m.normals),
+      indices: new Uint32Array(m.indices),
+    })),
+  };
+}
+
+/** Live-render channel events over Vite's HMR socket. */
+export const RENDER_EVENT = "cadcode:render";
+export const SELECT_EVENT = "cadcode:select";
+export interface RenderMessage {
+  file: string;
+  result: SerializedRunResult;
+}
+export interface SelectMessage {
+  file: string;
+}

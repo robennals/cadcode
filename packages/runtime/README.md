@@ -15,11 +15,16 @@ All errors — compile, runtime, or geometry — are caught and returned in the
 The compile step is pluggable (`CompileFn`) so the same `run` works in Node
 (native esbuild) and in the browser worker (esbuild-wasm).
 
+In the shipped viewer-only setup, the **CLI** bundles the entry file + its imports
+with esbuild and calls `runCode` directly; `run` (single-file, with a compile step)
+is retained for tests and the optional browser path.
+
 ## Files
 
-- `src/run.ts` — `run(source, { compile })`: execution, graph walking, error
-  handling. Imports `compile` as a **type only**, so importing `run` does not
-  pull native esbuild into a browser bundle.
+- `src/run.ts` — `runCode(code)` executes already-bundled CJS with the API
+  injected and walks the graph into meshes; `run(source, { compile })` is the
+  single-file convenience wrapper. Imports `compile` as a **type only**, so
+  importing `runCode`/`run` does not pull native esbuild into a browser bundle.
 - `src/compile.ts` — the `CompileFn` type and `nodeCompile` (native esbuild).
 - `src/index.ts` — public entry point.
 - `src/run.test.ts` — end-to-end test (valid source → mesh; invalid → errors).

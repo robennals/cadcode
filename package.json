@@ -6,7 +6,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "pnpm -r build",
-    "dev": "pnpm --filter @cadcode/app dev",
+    "dev": "tsx packages/cli/src/index.ts dev",
     "cadcode": "tsx packages/cli/src/index.ts"
   },
   "devDependencies": {

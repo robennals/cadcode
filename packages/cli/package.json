@@ -3,5 +3,12 @@
   "version": "0.0.0",
   "type": "module",
   "bin": { "cadcode": "bin/cadcode.js" },
-  "dependencies": { "@cadcode/app": "workspace:*", "vite": "^5.4.0" }
+  "dependencies": {
+    "@cadcode/app": "workspace:*",
+    "@cadcode/protocol": "workspace:*",
+    "@cadcode/kernel": "workspace:*",
+    "@cadcode/runtime": "workspace:*",
+    "esbuild": "^0.24.0",
+    "vite": "^5.4.0"
+  }
 }

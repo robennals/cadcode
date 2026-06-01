@@ -1,33 +1,32 @@
 # @cadcode/app
 
-The browser UI: a Vite + React app with a Monaco code editor on the left and a
-live three.js viewport plus hierarchy tree on the right. It owns a Web Worker
-that runs the heavy WASM (esbuild + OpenCascade) off the UI thread, debounces
-editor changes into "run" messages, and renders the meshes the worker returns.
+The browser **viewer** (Vite + React). It does not edit or execute models — you
+edit model files in your own editor; this app renders them. It connects to the
+`@cadcode/cli` dev server, tells it which file to render (chosen by the `?file=`
+URL param or the sidebar), and displays the meshes + hierarchy the server
+live-pushes over Vite's HMR socket whenever the file or its imports change.
 
-When launched standalone (`pnpm dev`) it edits an in-memory default model. When
-launched through `@cadcode/cli` (`cadcode dev <file>`), it loads and saves that
-file over `/api/file`.
+Layout (Storybook-style): a sidebar lists every model file in the project; the
+main area shows the selected file's name, the 3D viewport (with rotate/pan/zoom/
+fit controls), and a hierarchy tree. The current file is also shown in the tab
+title. Rendering is lazy — only the selected file is built.
 
 ## Files
 
 - `index.html` — HTML entry; mounts `src/main.tsx`.
-- `vite.config.ts` — Vite config (React plugin, ES-format workers, fs allow).
+- `vite.config.ts` — Vite config (React plugin, fs allow).
 - `src/main.tsx` — React entry; mounts `<App>`.
-- `src/App.tsx` — top-level layout, worker ownership, debounced runs, error and
-  tree panels, and optional file sync via `/api/file`.
-- `src/worker.ts` — Web Worker: initializes esbuild-wasm + the OC kernel and runs
-  the user source, posting back meshes (transferred) and hierarchy.
-- `src/Viewport.tsx` — three.js scene that renders the body meshes, with
-  OrbitControls navigation (mouse/touchpad/touch), viewport-scoped keyboard
-  controls, and on-screen rotate/zoom/fit widgets. See "Navigating the viewport".
-- `src/dts.ts` — ambient API type declarations fed to Monaco for IntelliSense.
-- `src/defaultModel.ts` — the starter source shown when no file is loaded.
-- `src/processShim.ts` — minimal `process` shim (imported first in the worker)
-  so the emscripten/esbuild-wasm glue can probe `process` in the browser.
-- `playwright.config.ts` — Playwright config (boots `pnpm dev`).
-- `tests/smoke.spec.ts` — end-to-end smoke test (default model renders one mesh;
-  viewport controls are present).
+- `src/App.tsx` — sidebar index + main viewer; resolves the file from the URL,
+  subscribes to the HMR render channel, keeps the URL/tab-title in sync.
+- `src/Viewport.tsx` — three.js scene with OrbitControls + on-screen
+  rotate/pan/zoom/fit widgets and a keyboard fallback. See "Navigating the viewport".
+- `playwright.config.ts` — boots a real `cadcode dev` server against `tests/fixtures`.
+- `tests/fixtures/` — sample models used by the e2e tests (`box.ts` imports
+  `lib/shapes.ts`; `tall.ts` is a second model). `_*.ts` are scratch files made by
+  tests (gitignored).
+- `tests/smoke.spec.ts` — viewer e2e: render, file name in URL/title, sidebar
+  switching, URL selection, controls, responsive layout.
+- `tests/livereload.spec.ts` — proves the render auto-refreshes when a file changes.
 
 ## Navigating the viewport
 
