@@ -13,6 +13,8 @@ interface ViewApi {
   pan(dx: number, dy: number): void;
   dolly(factor: number): void;
   fitView(): void;
+  /** Request a render (e.g. after the meshes change). */
+  invalidate(): void;
 }
 
 export function Viewport({ meshes }: { meshes: BodyMesh[] }) {
@@ -22,6 +24,7 @@ export function Viewport({ meshes }: { meshes: BodyMesh[] }) {
   const apiRef = useRef<ViewApi | null>(null);
   const framedRef = useRef(false);
   const holdTimer = useRef<number | null>(null);
+  const materialRef = useRef<THREE.MeshStandardMaterial | null>(null);
 
   useEffect(() => {
     const container = containerRef.current!;
@@ -64,6 +67,30 @@ export function Viewport({ meshes }: { meshes: BodyMesh[] }) {
     // Mouse: left = rotate, right = pan, middle = zoom (OrbitControls defaults).
     // Touch: one finger = rotate, two fingers = zoom + pan.
     controls.target.set(0, 0, 0);
+
+    // --- On-demand rendering ---
+    // Instead of a permanent 60fps loop, render only while something is moving.
+    // controls.update() returns true while the (damped) camera is still
+    // settling, so we keep looping until it reports no change, then stop.
+    let raf = 0;
+    let looping = false;
+    const frame = () => {
+      const changed = controls.update();
+      renderer.render(scene, camera);
+      if (changed) {
+        raf = requestAnimationFrame(frame);
+      } else {
+        looping = false;
+      }
+    };
+    const requestRender = () => {
+      if (looping) return;
+      looping = true;
+      raf = requestAnimationFrame(frame);
+    };
+    // OrbitControls emits "change" on every camera move (user input, damping,
+    // and our imperative helpers' controls.update()), which drives rendering.
+    controls.addEventListener("change", requestRender);
 
     // --- Imperative helpers driven by widgets + keyboard ---
     const sph = new THREE.Spherical();
@@ -111,20 +138,14 @@ export function Viewport({ meshes }: { meshes: BodyMesh[] }) {
       camera.updateProjectionMatrix();
       controls.update();
     };
-    apiRef.current = { rotate, pan, dolly, fitView };
-
-    let raf = 0;
-    const animate = () => {
-      controls.update();
-      renderer.render(scene, camera);
-      raf = requestAnimationFrame(animate);
-    };
-    animate();
+    apiRef.current = { rotate, pan, dolly, fitView, invalidate: requestRender };
+    requestRender(); // first frame
 
     const onResize = () => {
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(container.clientWidth, container.clientHeight);
+      requestRender();
     };
     window.addEventListener("resize", onResize);
     const observer = new ResizeObserver(onResize);
@@ -134,7 +155,18 @@ export function Viewport({ meshes }: { meshes: BodyMesh[] }) {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
       observer.disconnect();
+      controls.removeEventListener("change", requestRender);
       controls.dispose();
+      // Free GPU buffers for every geometry/material in the scene (renderer
+      // .dispose() does not traverse the scene graph).
+      scene.traverse((o) => {
+        const mesh = o as Partial<THREE.Mesh>;
+        mesh.geometry?.dispose?.();
+        const mat = mesh.material;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else (mat as THREE.Material | undefined)?.dispose?.();
+      });
+      materialRef.current?.dispose();
       renderer.dispose();
       host.removeChild(renderer.domElement);
       apiRef.current = null;
@@ -145,12 +177,18 @@ export function Viewport({ meshes }: { meshes: BodyMesh[] }) {
   useEffect(() => {
     const group = groupRef.current;
     if (!group) return;
+    // Dispose the previous frame's GPU buffers before replacing them.
+    for (const child of group.children) {
+      (child as THREE.Mesh).geometry?.dispose();
+    }
     group.clear();
+    materialRef.current?.dispose();
     const mat = new THREE.MeshStandardMaterial({
       color: 0x4f9dde,
       metalness: 0.1,
       roughness: 0.6,
     });
+    materialRef.current = mat;
     for (const m of meshes) {
       const g = new THREE.BufferGeometry();
       g.setAttribute("position", new THREE.BufferAttribute(m.positions, 3));
@@ -163,6 +201,8 @@ export function Viewport({ meshes }: { meshes: BodyMesh[] }) {
       apiRef.current?.fitView();
       framedRef.current = true;
     }
+    // New geometry needs a render even when the camera hasn't moved.
+    apiRef.current?.invalidate();
   }, [meshes]);
 
   // Press-and-hold support so buttons repeat while held.
@@ -172,6 +212,9 @@ export function Viewport({ meshes }: { meshes: BodyMesh[] }) {
       holdTimer.current = null;
     }
   };
+  // Stop any in-progress hold if the component unmounts (e.g. file switch)
+  // before pointerup fires, so the interval can't leak.
+  useEffect(() => stopHold, []);
   const hold = (fn: () => void) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();

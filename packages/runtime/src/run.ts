@@ -1,13 +1,29 @@
-// Orchestrates one model evaluation: compile the user's TS, execute it with the
+// Orchestrates one model evaluation: execute the user's (bundled) code with the
 // core API injected as globals, then walk the resulting graph through the kernel
-// to produce meshes for every alive body plus a serialized hierarchy. All
-// errors (compile, runtime, geometry) are caught and returned, never thrown.
+// to produce meshes for every alive body plus a serialized hierarchy. All errors
+// (execution, geometry) are caught and returned, never thrown. User code runs in
+// a `vm` context with a wall-clock timeout, so a runaway loop in a model file
+// can't hang the host process. OCCT shapes are disposed after tessellation.
+import vm from "node:vm";
 import { createBuilder } from "@cadcode/core";
-import type { Model, RunResult, HierarchyNode, BodyMesh } from "@cadcode/protocol";
-import { extrudeRect, filletAll, tessellate, type Solid } from "@cadcode/kernel";
+import {
+  emptyResult,
+  errorMessage,
+  type Model,
+  type RunResult,
+  type HierarchyNode,
+  type BodyMesh,
+} from "@cadcode/protocol";
+import {
+  extrudeRect,
+  filletAll,
+  tessellate,
+  dispose,
+  type Solid,
+} from "@cadcode/kernel";
 import type { CompileFn } from "./compile";
 
-const API_NAMES = ["rect", "extrude", "fillet", "edges", "dimension"] as const;
+const DEFAULT_TIMEOUT_MS = 5000;
 
 function buildHierarchy(model: Model): HierarchyNode[] {
   const aliveSet = new Set(model.alive);
@@ -18,79 +34,85 @@ function buildHierarchy(model: Model): HierarchyNode[] {
   });
 }
 
-/** Walk the graph, producing a replicad Solid for each body id. */
-function evaluate(model: Model): Map<string, Solid> {
-  const solids = new Map<string, Solid>();
+/** Walk the graph, producing a replicad Solid for each body id into `solids`. */
+function evaluate(model: Model, solids: Map<string, Solid>): void {
   for (const id of model.order) {
     const node = model.nodes[id];
     if (node.op === "rect") continue; // regions are realised by their consumer
     if (node.op === "extrude") {
       const region = model.nodes[node.region];
-      if (region.op !== "rect") throw new Error("M0 only supports extruding a rect");
+      if (region?.op !== "rect") throw new Error(`extrude: unknown region '${node.region}'`);
       solids.set(id, extrudeRect(region.width, region.height, node.height));
     } else if (node.op === "fillet") {
       const base = solids.get(node.body);
-      if (!base) throw new Error("fillet target has no geometry");
+      if (!base) throw new Error(`fillet: no geometry for body '${node.body}'`);
       if (node.edges.kind !== "all") throw new Error("M0 only supports edges(...).all");
       solids.set(id, filletAll(base, node.radius));
     }
   }
-  return solids;
 }
 
 /**
- * Execute already-compiled CommonJS model code (the user's TS, transformed or
- * bundled to CJS) with the core API injected as globals, then walk the graph
- * into meshes. The CLI uses this after bundling an entry file + its imports;
- * `run` below is the single-file convenience wrapper.
+ * Execute already-bundled CommonJS model code with the core API injected as
+ * globals, then walk the graph into meshes. The CLI bundles an entry file + its
+ * imports and calls this; `run` below is the single-file convenience wrapper.
  */
-export function runCode(code: string): RunResult {
+export function runCode(
+  code: string,
+  opts: { timeoutMs?: number } = {},
+): RunResult {
   const builder = createBuilder();
   const dimension = () => {
     throw new Error("dimension() requires the constraint solver (added in M1)");
   };
-  const api: Record<string, unknown> = {
+  const mod: { exports: Record<string, unknown> } = { exports: {} };
+  // The injected API is a single source of truth — both the names and the
+  // implementations come from this one object (no parallel name list to desync).
+  const context = vm.createContext({
+    exports: mod.exports,
+    module: mod,
+    console,
     rect: builder.rect,
     extrude: builder.extrude,
     fillet: builder.fillet,
     edges: builder.edges,
     dimension,
-  };
+  });
 
   try {
-    const fn = new Function("exports", "module", ...API_NAMES, code);
-    const mod = { exports: {} as Record<string, unknown> };
-    fn(mod.exports, mod, ...API_NAMES.map((n) => api[n]));
+    vm.runInContext(code, context, {
+      timeout: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      filename: "cadcode-model.js",
+    });
   } catch (e) {
-    return { hierarchy: [], meshes: [], errors: [String((e as Error).message ?? e)] };
+    return emptyResult([errorMessage(e)]);
   }
 
   const model = builder.getModel();
+  const solids = new Map<string, Solid>();
   try {
-    const solids = evaluate(model);
+    evaluate(model, solids);
     const meshes: BodyMesh[] = model.alive.map((id) =>
       tessellate(id, solids.get(id)),
     );
     return { hierarchy: buildHierarchy(model), meshes, errors: [] };
   } catch (e) {
-    return {
-      hierarchy: buildHierarchy(model),
-      meshes: [],
-      errors: [String((e as Error).message ?? e)],
-    };
+    return { hierarchy: buildHierarchy(model), meshes: [], errors: [errorMessage(e)] };
+  } finally {
+    for (const s of solids.values()) dispose(s);
   }
 }
 
 /** Single-file convenience: compile a source string, then run it. */
 export async function run(
   source: string,
-  opts: { compile: CompileFn },
+  opts: { compile: CompileFn; timeoutMs?: number },
 ): Promise<RunResult> {
   let code: string;
   try {
     code = await opts.compile(source);
   } catch (e) {
-    return { hierarchy: [], meshes: [], errors: [String((e as Error).message ?? e)] };
+    return emptyResult([errorMessage(e)]);
   }
-  return runCode(code);
+  return runCode(code, { timeoutMs: opts.timeoutMs });
 }

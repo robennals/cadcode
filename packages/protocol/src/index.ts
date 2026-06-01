@@ -71,11 +71,16 @@ export interface RunResult {
   errors: string[];
 }
 
-/** Worker protocol. */
-export type WorkerRequest = { type: "run"; source: string };
-export type WorkerResponse =
-  | { type: "result"; result: RunResult }
-  | { type: "error"; message: string };
+/** Best-effort human-readable message from an unknown thrown value. */
+export function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  return String((e as { message?: unknown })?.message ?? e);
+}
+
+/** An empty render result, optionally carrying error messages. */
+export function emptyResult(errors: string[] = []): RunResult {
+  return { hierarchy: [], meshes: [], errors };
+}
 
 // --- Transport (server -> viewer) ---
 // Typed arrays don't survive JSON, so render results are serialized with plain

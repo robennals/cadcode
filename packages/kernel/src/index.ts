@@ -10,5 +10,6 @@ export {
   filletAll,
   edgeCount,
   tessellate,
+  dispose,
 } from "./kernel";
 export type { Solid } from "./kernel";

@@ -34,6 +34,16 @@ export function edgeCount(solid: Solid): number {
   return (solid as any).edges.length;
 }
 
+/** Free the WASM memory held by a replicad/OCCT shape. replicad also frees via
+ *  GC finalizers, but explicit disposal bounds peak memory during re-renders. */
+export function dispose(solid: Solid): void {
+  try {
+    (solid as { delete?: () => void } | undefined)?.delete?.();
+  } catch {
+    /* already freed */
+  }
+}
+
 export function tessellate(id: string, solid: Solid): BodyMesh {
   // replicad mesh() returns faceted { vertices, triangles, normals } as number[].
   const m = (solid as any).mesh({ tolerance: 0.1, angularTolerance: 0.3 });

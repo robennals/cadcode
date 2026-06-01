@@ -8,6 +8,7 @@ import {
   writeFileSync,
   statSync,
   readdirSync,
+  realpathSync,
 } from "node:fs";
 import { createServer, type Plugin } from "vite";
 import { fileURLToPath } from "node:url";
@@ -16,6 +17,8 @@ import { init } from "@cadcode/kernel/oc";
 import { runCode } from "@cadcode/runtime/run";
 import {
   serializeRunResult,
+  emptyResult,
+  errorMessage,
   RENDER_EVENT,
   SELECT_EVENT,
   type RunResult,
@@ -62,11 +65,32 @@ export function listModelFiles(root: string): string[] {
   return out.sort();
 }
 
-/** Resolve a project-relative path, rejecting anything that escapes the root. */
+function realpathOr(p: string): string {
+  try {
+    return realpathSync(p);
+  } catch {
+    return p; // path may not exist yet
+  }
+}
+
+function prefixOk(abs: string, root: string): boolean {
+  return abs === root || abs.startsWith(root + sep);
+}
+
+/** True if `abs` is inside `root`, checking both the textual path (catches `..`)
+ *  and the realpath (catches symlink escapes). */
+export function isWithin(root: string, abs: string): boolean {
+  const normRoot = resolve(root);
+  if (!prefixOk(abs, normRoot)) return false;
+  return prefixOk(realpathOr(abs), realpathOr(normRoot));
+}
+
+/** Resolve a project-relative path, rejecting anything that escapes the root
+ *  (including via symlinks). Returns the logical (non-realpath) absolute path. */
 export function resolveWithin(root: string, rel: string): string {
   const normRoot = resolve(root);
   const abs = resolve(normRoot, rel);
-  if (abs !== normRoot && !abs.startsWith(normRoot + sep)) {
+  if (!isWithin(normRoot, abs)) {
     throw new Error("path escapes root");
   }
   return abs;
@@ -163,52 +187,93 @@ function cadcodePlugin(root: string, initial?: string): Plugin {
       });
 
       // --- Live render over the HMR socket ---
-      let activeFile: string | null = null;
-      let watched = new Set<string>();
-      let timer: ReturnType<typeof setTimeout> | null = null;
+      // Per-file state so multiple viewers (tabs) on different files all work,
+      // and so concurrent/rapid renders can't clobber each other:
+      //   depsByFile  — the watched input files for each rendered file
+      //   genByFile   — a monotonic token per file to drop stale async renders
+      //   timers      — per-file debounce
+      // (Entries persist for the session; a file viewed once keeps live-reloading
+      //  even after its tab closes — acceptable for a local single-user tool.)
+      const depsByFile = new Map<string, Set<string>>();
+      const genByFile = new Map<string, number>();
+      const timers = new Map<string, ReturnType<typeof setTimeout>>();
+      let currentlyWatched = new Set<string>();
 
-      const render = async () => {
-        if (!activeFile) return;
+      const reconcileWatch = () => {
+        const union = new Set<string>();
+        for (const set of depsByFile.values()) for (const p of set) union.add(p);
+        for (const p of union) if (!currentlyWatched.has(p)) server.watcher.add(p);
+        for (const p of currentlyWatched) if (!union.has(p)) server.watcher.unwatch(p);
+        currentlyWatched = union;
+      };
+
+      const renderFile = async (file: string) => {
+        const gen = (genByFile.get(file) ?? 0) + 1;
+        genByFile.set(file, gen);
+
         let absEntry: string;
         try {
-          absEntry = resolveWithin(root, activeFile);
+          absEntry = resolveWithin(root, file);
         } catch {
           return;
         }
-        const bundled = await bundleFile(absEntry);
-        const result: RunResult = bundled.error
-          ? { hierarchy: [], meshes: [], errors: [bundled.error] }
-          : runCode(bundled.code);
 
-        // Watch only the user's own source files (not node_modules).
-        const nextWatched = new Set(
-          bundled.inputs.filter(
-            (p) =>
-              p.startsWith(resolve(root) + sep) &&
-              !p.includes(`${sep}node_modules${sep}`),
-          ),
-        );
-        for (const p of nextWatched) if (!watched.has(p)) server.watcher.add(p);
-        for (const p of watched) if (!nextWatched.has(p)) server.watcher.unwatch(p);
-        watched = nextWatched;
+        let result: RunResult;
+        let inputs: string[] | null = null;
+        try {
+          const bundled = await bundleFile(absEntry);
+          if (bundled.error) {
+            // Keep the previous watch set on a bundle error, so fixing an
+            // imported file still triggers a re-render.
+            result = emptyResult([bundled.error]);
+          } else {
+            result = runCode(bundled.code);
+            inputs = bundled.inputs.filter(
+              (p) => isWithin(root, p) && !p.includes(`${sep}node_modules${sep}`),
+            );
+          }
+        } catch (e) {
+          result = emptyResult([errorMessage(e)]);
+        }
 
-        server.ws.send(RENDER_EVENT, {
-          file: activeFile,
-          result: serializeRunResult(result),
-        });
+        // A newer render for this file superseded us while we awaited — drop.
+        if (genByFile.get(file) !== gen) return;
+
+        if (inputs) {
+          depsByFile.set(file, new Set(inputs));
+          reconcileWatch();
+        } else if (!depsByFile.has(file)) {
+          // First render failed: at least watch the entry so a fix re-renders.
+          depsByFile.set(file, new Set([absEntry]));
+          reconcileWatch();
+        }
+        server.ws.send(RENDER_EVENT, { file, result: serializeRunResult(result) });
       };
-      const scheduleRender = () => {
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(render, 80);
+
+      const scheduleRender = (file: string) => {
+        const prev = timers.get(file);
+        if (prev) clearTimeout(prev);
+        timers.set(
+          file,
+          setTimeout(() => {
+            // renderFile catches its own errors; this .catch is a last-resort
+            // guard so a render can never become an unhandled rejection.
+            renderFile(file).catch((e) =>
+              server.ws.send(RENDER_EVENT, {
+                file,
+                result: serializeRunResult(emptyResult([errorMessage(e)])),
+              }),
+            );
+          }, 80),
+        );
       };
 
       server.ws.on(SELECT_EVENT, (data: SelectMessage) => {
-        if (!data?.file) return;
-        activeFile = data.file;
-        scheduleRender();
+        if (data?.file) scheduleRender(data.file);
       });
       server.watcher.on("change", (file) => {
-        if (watched.has(resolve(file))) scheduleRender();
+        const abs = resolve(file);
+        for (const [f, deps] of depsByFile) if (deps.has(abs)) scheduleRender(f);
       });
     },
   };

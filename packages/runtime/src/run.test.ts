@@ -32,4 +32,14 @@ describe("runtime.run", () => {
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.meshes).toEqual([]);
   });
+
+  it("aborts a runaway loop via the timeout instead of hanging", async () => {
+    const result = await run("while (true) {}", {
+      compile: nodeCompile,
+      timeoutMs: 200,
+    });
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0].toLowerCase()).toContain("timed out");
+    expect(result.meshes).toEqual([]);
+  });
 });

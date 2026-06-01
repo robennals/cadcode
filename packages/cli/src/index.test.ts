@@ -12,7 +12,7 @@ import {
 import { bundleFile } from "./bundle";
 import { init } from "@cadcode/kernel/oc";
 import { runCode } from "@cadcode/runtime/run";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -56,6 +56,15 @@ describe("cli file helpers", () => {
     expect(resolveWithin(dir, "box.ts")).toBe(join(dir, "box.ts"));
     expect(() => resolveWithin(dir, "../secret")).toThrow();
     expect(() => resolveWithin(dir, "/etc/passwd")).toThrow();
+  });
+
+  it("rejects a symlink that points outside the project root", () => {
+    const dir = makeProject();
+    const outside = mkdtempSync(join(tmpdir(), "cadcode-outside-"));
+    writeFileSync(join(outside, "secret.ts"), "// secret");
+    symlinkSync(join(outside, "secret.ts"), join(dir, "link.ts"));
+    // Textually inside root, but realpath escapes — must be rejected.
+    expect(() => resolveWithin(dir, "link.ts")).toThrow();
   });
 
   it("resolves a directory target vs a file target", () => {
