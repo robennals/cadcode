@@ -16,12 +16,20 @@ import {
 import {
   extrudeRect,
   extrudeProfile,
+  extrudeCircle,
+  revolveProfile,
+  loftProfiles,
+  shellBody,
+  chamferAll,
+  booleanOp,
   filletAll,
   tessellate,
   regionFaceMesh,
+  circleFaceMesh,
   profileFaceMesh,
   dispose,
   type Solid,
+  type ProfileSpec,
 } from "@cadcode/kernel";
 import { solveSketch } from "@cadcode/solver";
 import type { CompileFn } from "./compile";
@@ -41,25 +49,68 @@ function profileOf(model: Model, id: string): [number, number][] {
   });
 }
 
+/** A region's closed-polygon points (circles are curved and have no points). */
+function regionPoints(model: Model, id: string): [number, number][] {
+  const node = model.nodes[id];
+  if (node.op === "polygon") return node.points;
+  if (node.op === "sketch") return profileOf(model, id);
+  if (node.op === "rect") {
+    const w = node.width / 2;
+    const h = node.height / 2;
+    return [
+      [-w, -h],
+      [w, -h],
+      [w, h],
+      [-w, h],
+    ];
+  }
+  throw new Error(`region '${id}' (${node.op}) has no polygon profile`);
+}
+
+/** A region as a loft profile spec placed at height z. */
+function regionSpec(model: Model, id: string, z: number): ProfileSpec {
+  const node = model.nodes[id];
+  if (node.op === "circle") return { radius: node.radius, z };
+  return { points: regionPoints(model, id), z };
+}
+
 /** Walk the graph, producing a replicad Solid for each body id into `solids`. */
 function evaluate(model: Model, solids: Map<string, Solid>): void {
+  const need = (bid: string, op: string): Solid => {
+    const s = solids.get(bid);
+    if (!s) throw new Error(`${op}: no geometry for body '${bid}'`);
+    return s;
+  };
   for (const id of model.order) {
     const node = model.nodes[id];
-    if (node.op === "rect" || node.op === "sketch") continue; // regions
+    if (node.op === "rect" || node.op === "circle" || node.op === "polygon" || node.op === "sketch")
+      continue; // regions
     if (node.op === "extrude") {
       const region = model.nodes[node.region];
       if (region?.op === "rect") {
         solids.set(id, extrudeRect(region.width, region.height, node.height));
-      } else if (region?.op === "sketch") {
-        solids.set(id, extrudeProfile(profileOf(model, node.region), node.height));
+      } else if (region?.op === "circle") {
+        solids.set(id, extrudeCircle(region.radius, node.height));
+      } else if (region?.op === "polygon" || region?.op === "sketch") {
+        solids.set(id, extrudeProfile(regionPoints(model, node.region), node.height));
       } else {
         throw new Error(`extrude: unknown region '${node.region}'`);
       }
+    } else if (node.op === "revolve") {
+      solids.set(id, revolveProfile(regionPoints(model, node.region), node.angle));
+    } else if (node.op === "loft") {
+      const specs = node.regions.map((rid, i) => regionSpec(model, rid, node.heights[i]));
+      solids.set(id, loftProfiles(specs));
+    } else if (node.op === "shell") {
+      solids.set(id, shellBody(need(node.body, "shell"), node.thickness));
     } else if (node.op === "fillet") {
-      const base = solids.get(node.body);
-      if (!base) throw new Error(`fillet: no geometry for body '${node.body}'`);
-      if (node.edges.kind !== "all") throw new Error("M0 only supports edges(...).all");
-      solids.set(id, filletAll(base, node.radius));
+      if (node.edges.kind !== "all") throw new Error("only edges(...).all is supported");
+      solids.set(id, filletAll(need(node.body, "fillet"), node.radius));
+    } else if (node.op === "chamfer") {
+      if (node.edges.kind !== "all") throw new Error("only edges(...).all is supported");
+      solids.set(id, chamferAll(need(node.body, "chamfer"), node.distance));
+    } else if (node.op === "boolean") {
+      solids.set(id, booleanOp(need(node.a, "boolean"), need(node.b, "boolean"), node.kind));
     }
   }
 }
@@ -71,8 +122,11 @@ function meshTarget(model: Model, solids: Map<string, Solid>, id: string): Stage
   if (node.op === "rect") {
     return { name: "", op: "rect", mesh: regionFaceMesh(id, node.width, node.height) };
   }
-  if (node.op === "sketch") {
-    return { name: "", op: "sketch", mesh: profileFaceMesh(id, profileOf(model, id)) };
+  if (node.op === "circle") {
+    return { name: "", op: "circle", mesh: circleFaceMesh(id, node.radius) };
+  }
+  if (node.op === "polygon" || node.op === "sketch") {
+    return { name: "", op: node.op, mesh: profileFaceMesh(id, regionPoints(model, id)) };
   }
   const solid = solids.get(id);
   if (!solid) throw new Error(`render target '${id}' has no geometry`);
@@ -100,8 +154,17 @@ export function runCode(
     module: mod,
     console,
     rect: builder.rect,
+    circle: builder.circle,
+    polygon: builder.polygon,
     extrude: builder.extrude,
+    revolve: builder.revolve,
+    loft: builder.loft,
+    shell: builder.shell,
     fillet: builder.fillet,
+    chamfer: builder.chamfer,
+    union: builder.union,
+    subtract: builder.subtract,
+    intersect: builder.intersect,
     edges: builder.edges,
     dimension,
     render: builder.render,

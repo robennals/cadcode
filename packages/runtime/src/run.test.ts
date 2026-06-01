@@ -32,6 +32,27 @@ describe("runtime.run", () => {
     await initSolver();
   });
 
+  it("evaluates the new operators (circle/revolve/loft/shell/chamfer/boolean)", async () => {
+    const ops = `
+      const cup = shell(extrude(circle(15), 30), 2);
+      const cone = loft([circle(10), circle(5)], [0, 20]);
+      const vase = revolve(polygon([[2,0],[6,0],[6,10],[2,10]]));
+      const beveled = chamfer(extrude(rect(20,20), 10), edges(extrude(rect(20,20), 10)).all, 2);
+      const washer = subtract(extrude(circle(10), 4), extrude(circle(5), 4));
+      render(cup, { cone, vase, beveled, washer });
+    `;
+    const result = await run(ops, { compile: nodeCompile });
+    expect(result.errors).toEqual([]);
+    expect(result.stages.map((s) => s.name)).toEqual([
+      "result",
+      "cone",
+      "vase",
+      "beveled",
+      "washer",
+    ]);
+    for (const s of result.stages) expect(s.mesh.positions.length).toBeGreaterThan(0);
+  });
+
   it("solves a constrained square sketch and extrudes it", async () => {
     const result = await run(SQUARE, { compile: nodeCompile });
     expect(result.errors).toEqual([]);
