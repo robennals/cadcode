@@ -1,0 +1,7 @@
+{
+  "name": "@cadcode/types",
+  "version": "0.0.0",
+  "description": "Ambient TypeScript declarations for the cadcode model API.",
+  "types": "index.d.ts",
+  "files": ["index.d.ts"]
+}

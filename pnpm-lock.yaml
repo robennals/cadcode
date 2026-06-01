@@ -21,6 +21,12 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.19)
 
+  examples:
+    devDependencies:
+      '@cadcode/types':
+        specifier: workspace:*
+        version: link:../packages/types
+
   packages/app:
     dependencies:
       '@cadcode/protocol':
@@ -110,6 +116,8 @@ importers:
       esbuild:
         specifier: ^0.24.0
         version: 0.24.2
+
+  packages/types: {}
 
 packages:
 

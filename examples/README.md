@@ -16,6 +16,6 @@ the render refreshes automatically.
 - `cube.ts` — a rounded cube; the simplest self-contained model.
 - `bracket.ts` — built from a helper in `lib/shapes.ts`, showing cross-file imports.
 - `lib/shapes.ts` — reusable geometry helpers (not a model on its own).
-- `cadcode-globals.d.ts` — ambient declarations for the cadcode API so your
-  editor gives IntelliSense (the API functions are globals; no import needed).
-- `tsconfig.json` — makes editors pick up the ambient types for this folder.
+- `tsconfig.json` — sets `"types": ["@cadcode/types"]` so editors get IntelliSense
+  for the global API. (This folder depends on `@cadcode/types` rather than keeping
+  a `.d.ts` of its own — the same setup you'd use in your own project.)
