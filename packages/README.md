@@ -12,6 +12,7 @@ result to the **app** viewer in the browser.
 | [`types`](./types) | Ambient declarations for the global model API, for editor IntelliSense in user projects. |
 | [`core`](./core) | The user-facing modelling API; records an immutable model graph (pure data). |
 | [`kernel`](./kernel) | Geometry primitives over replicad/OpenCascade (extrude, fillet, tessellate). |
+| [`solver`](./solver) | 2D sketch constraint solver — wraps FreeCAD's GCS (planegcs, WASM). |
 | [`runtime`](./runtime) | Executes bundled user code, walks the graph through the kernel into meshes. |
 | [`app`](./app) | Browser **viewer**: file sidebar + three.js viewport + hierarchy (no editor). |
 | [`cli`](./cli) | `cadcode dev` — bundle + headless render + file-watch live reload; `export` (M4). |

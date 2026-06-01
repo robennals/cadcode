@@ -48,6 +48,10 @@ viewport shows the primary object, and the stage panel lists the named stages
 (with their type) so you can click one to view it instead. Model files can also
 `import` other files (see `examples/bracket.ts`).
 
+Sketches can be defined with **constraints** instead of explicit coordinates —
+`lines`, `coincident`, `parallel`, `perpendicular`, `equal`, `horizontal`,
+`distance`, … solved by FreeCAD's GCS solver. See `examples/square.ts`.
+
 `./examples` has more. For editor
 IntelliSense in your own project, install **`@cadcode/types`** and add it to your
 tsconfig — `{ "compilerOptions": { "types": ["@cadcode/types"] } }` — instead of
@@ -80,6 +84,7 @@ A pnpm monorepo. The packages and how they fit together are described in
 | `@cadcode/types` | Ambient declarations for the global model API (editor IntelliSense) |
 | `@cadcode/core` | User-facing modelling API; records the model graph |
 | `@cadcode/kernel` | Geometry via replicad/OpenCascade |
+| `@cadcode/solver` | 2D sketch constraint solver (FreeCAD's GCS via planegcs) |
 | `@cadcode/runtime` | Executes bundled user code; walks the graph into meshes |
 | `@cadcode/app` | Browser viewer (file sidebar + three.js viewport) |
 | `@cadcode/cli` | `cadcode dev` (bundle + render + live reload) / `export` |
