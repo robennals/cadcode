@@ -55,3 +55,38 @@ describe("createBuilder", () => {
     expect(model.render?.stages).toEqual([]);
   });
 });
+
+describe("sketch + constraints", () => {
+  it("records a square sketch with points, lines, constraints, and a 4-point loop", () => {
+    const b = createBuilder();
+    const [lb, lr, lt, ll] = b.lines(4);
+    b.coincident(
+      [lb.end, lr.start],
+      [lr.end, lt.start],
+      [lt.end, ll.start],
+      [ll.end, lb.start],
+    );
+    b.parallel([lb, lt], [lr, ll]);
+    b.perpendicular(lb, lr);
+    b.equal([lb, lr, lt, ll]);
+    b.horizontal(lb);
+    b.distance(lb.start, lb.end, 20);
+    const sq = b.sketch({ lb, lr, lt, ll });
+
+    const model = b.getModel();
+    const node = model.nodes[sq.region.__id];
+    expect(node.op).toBe("sketch");
+    if (node.op === "sketch") {
+      expect(node.lines).toHaveLength(4);
+      expect(node.points).toHaveLength(8); // 2 per line before coincident merge
+      expect(node.loop).toHaveLength(4); // merged corners
+      expect(node.points.find((p) => p.fixed)).toBeTruthy(); // first point pinned
+      const kinds = node.constraints.map((c) => c.kind);
+      expect(kinds).toContain("coincident");
+      expect(kinds).toContain("perpendicular");
+      expect(kinds).toContain("distance");
+    }
+    // A sketch is a region, not an alive body.
+    expect(model.alive).not.toContain(sq.region.__id);
+  });
+});
