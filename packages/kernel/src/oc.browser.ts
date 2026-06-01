@@ -1,7 +1,6 @@
 // Loads the OpenCascade WASM kernel into replicad in the browser, using Vite's
 // `?url` import to locate the .wasm asset. The Node equivalent is oc.ts.
 import { setOC } from "replicad";
-// @ts-expect-error - emscripten module has no types for this entry
 import ocFactory from "replicad-opencascadejs/src/replicad_single.js";
 import wasmUrl from "replicad-opencascadejs/src/replicad_single.wasm?url";
 

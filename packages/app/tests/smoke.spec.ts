@@ -13,3 +13,18 @@ test("default model renders one mesh and a 3-node tree", async ({ page }) => {
   await expect(page.getByTestId("tree")).toContainText("fillet");
   await expect(page.getByTestId("errors")).toHaveText("");
 });
+
+test("viewport exposes rotate / zoom / fit controls", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Fit view" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Zoom in" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Zoom out" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Rotate left" })).toBeVisible();
+  // Clicking a control must not throw or clear the rendered mesh.
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  await expect
+    .poll(async () =>
+      Number(await page.getByTestId("viewport").getAttribute("data-mesh-count")),
+    )
+    .toBe(1);
+});

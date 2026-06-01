@@ -18,10 +18,24 @@ file over `/api/file`.
   tree panels, and optional file sync via `/api/file`.
 - `src/worker.ts` — Web Worker: initializes esbuild-wasm + the OC kernel and runs
   the user source, posting back meshes (transferred) and hierarchy.
-- `src/Viewport.tsx` — three.js scene that renders the body meshes.
+- `src/Viewport.tsx` — three.js scene that renders the body meshes, with
+  OrbitControls navigation (mouse/touchpad/touch), viewport-scoped keyboard
+  controls, and on-screen rotate/zoom/fit widgets. See "Navigating the viewport".
 - `src/dts.ts` — ambient API type declarations fed to Monaco for IntelliSense.
 - `src/defaultModel.ts` — the starter source shown when no file is loaded.
 - `src/processShim.ts` — minimal `process` shim (imported first in the worker)
   so the emscripten/esbuild-wasm glue can probe `process` in the browser.
 - `playwright.config.ts` — Playwright config (boots `pnpm dev`).
-- `tests/smoke.spec.ts` — end-to-end smoke test (default model renders one mesh).
+- `tests/smoke.spec.ts` — end-to-end smoke test (default model renders one mesh;
+  viewport controls are present).
+
+## Navigating the viewport
+
+| Action | Mouse | Touchpad | Touch | Keyboard (click the viewport first) |
+|---|---|---|---|---|
+| Rotate | left-drag | drag | one finger | arrow keys, or the ▲◀▶▼ pad |
+| Zoom | scroll / middle-drag | scroll / pinch | pinch | `+` / `−`, or the ＋ / − buttons |
+| Pan | right-drag | two-finger drag | two fingers | shift + arrows |
+| Fit view | — | — | — | `0` / Home, or the ⤢ button |
+
+The model auto-frames the first time geometry appears.
