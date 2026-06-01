@@ -28,7 +28,8 @@ function makeProject(): string {
     join(dir, "box.ts"),
     "import { squareBlock } from './lib/shapes';\n" +
       "const part = squareBlock(20);\n" +
-      "const rounded = fillet(part, edges(part).all, 3);\n",
+      "const rounded = fillet(part, edges(part).all, 3);\n" +
+      "render(rounded, { block: part });\n",
   );
   writeFileSync(join(dir, "box.test.ts"), "// excluded\n");
   writeFileSync(join(dir, "types.d.ts"), "// excluded\n");
@@ -87,7 +88,7 @@ describe("bundle + run a model that imports another file", () => {
     await init();
   });
 
-  it("produces one alive mesh from box.ts -> lib/shapes.ts", async () => {
+  it("produces render stages from box.ts -> lib/shapes.ts", async () => {
     const dir = makeProject();
     const bundled = await bundleFile(join(dir, "box.ts"));
     expect(bundled.error).toBeUndefined();
@@ -96,9 +97,13 @@ describe("bundle + run a model that imports another file", () => {
 
     const result = runCode(bundled.code);
     expect(result.errors).toEqual([]);
-    expect(result.meshes).toHaveLength(1);
-    const alive = result.hierarchy.filter((n) => n.alive);
-    expect(alive).toHaveLength(1);
-    expect(alive[0].op).toBe("fillet");
+    expect(result.primary).toBe("result");
+    expect(result.stages.map((s) => [s.name, s.op])).toEqual([
+      ["result", "fillet"],
+      ["block", "extrude"],
+    ]);
+    for (const s of result.stages) {
+      expect(s.mesh.positions.length).toBeGreaterThan(0);
+    }
   });
 });

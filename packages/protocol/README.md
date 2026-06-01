@@ -4,9 +4,9 @@ Shared TypeScript types used across every package. No runtime logic (beyond one
 tiny type-guard), so it can be imported anywhere — worker, Node, or browser —
 without pulling in dependencies.
 
-It defines the **model graph** the builder produces, the **mesh** shape sent to
-the viewport, the **serialized hierarchy** for the tree panel, and the
-**worker ↔ main-thread message** protocol.
+It defines the **model graph** the builder produces (including the `render()`
+declaration), the **mesh** and **render-stage** shapes sent to the viewport, and
+the HMR render/select message protocol.
 
 It also defines the **transport** used by the viewer: typed arrays don't survive
 JSON, so `serializeRunResult`/`deserializeRunResult` convert meshes to/from plain

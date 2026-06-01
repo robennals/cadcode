@@ -2,7 +2,7 @@
 // script calls (rect/extrude/fillet/edges); each call records an immutable graph
 // node and tracks which bodies are still "alive" (not consumed). Pure data — no
 // geometry is computed here; that happens later in the kernel via the runtime.
-import type { Model, Node, EdgeSelector } from "@cadcode/protocol";
+import type { Model, Node, EdgeSelector, RenderDecl } from "@cadcode/protocol";
 
 /** Opaque handle the user passes between API calls. Wraps a node id. */
 export interface Handle {
@@ -18,6 +18,8 @@ export interface Builder {
   extrude(region: Handle, height: number): Handle;
   fillet(body: Handle, edges: EdgeSelector, radius: number): Handle;
   edges(body: Handle): EdgeQuery;
+  /** Declare what to render: the primary object plus named, viewable stages. */
+  render(primary: Handle, stages?: Record<string, Handle>): void;
   getModel(): Model;
 }
 
@@ -25,6 +27,7 @@ export function createBuilder(): Builder {
   const nodes: Record<string, Node> = {};
   const order: string[] = [];
   const alive = new Set<string>();
+  let renderDecl: RenderDecl | undefined;
   let counter = 0;
 
   const nextId = (op: string) => `${op}_${counter++}`;
@@ -70,8 +73,21 @@ export function createBuilder(): Builder {
     edges(body) {
       return { all: { body: body.__id, kind: "all" } };
     },
+    render(primary, stages = {}) {
+      renderDecl = {
+        primary: primary.__id,
+        stages: Object.entries(stages).map(([name, h]) => ({ name, id: h.__id })),
+      };
+    },
     getModel() {
-      return { nodes: { ...nodes }, order: [...order], alive: [...alive] };
+      // Fall back to the last alive body when the model didn't call render().
+      const aliveList = [...alive];
+      const render =
+        renderDecl ??
+        (aliveList.length
+          ? { primary: aliveList[aliveList.length - 1], stages: [] }
+          : undefined);
+      return { nodes: { ...nodes }, order: [...order], alive: aliveList, render };
     },
   };
 }

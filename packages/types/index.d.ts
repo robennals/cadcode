@@ -36,3 +36,12 @@ declare function fillet(body: Handle, edges: EdgeSelector, radius: number): Hand
 
 /** Query the edges of a body (M0 supports `.all`). */
 declare function edges(body: Handle): EdgeQuery;
+
+/**
+ * Declare what the viewer should render. The first argument is the primary
+ * object (shown by default); the optional second argument names additional
+ * stages the viewer lists and lets you click to view instead.
+ *
+ *   render(rounded, { cube, face });
+ */
+declare function render(primary: Handle, stages?: Record<string, Handle>): void;

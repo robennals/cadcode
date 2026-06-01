@@ -1,5 +1,5 @@
-// End-to-end runtime test: a source string compiles, runs, and produces a mesh
-// + hierarchy; invalid input is reported as errors rather than thrown.
+// End-to-end runtime test: a source string compiles, runs, and produces render
+// stages; invalid input is reported as errors rather than thrown.
 import { describe, it, expect, beforeAll } from "vitest";
 import { init } from "@cadcode/kernel/oc";
 import { run } from "./run";
@@ -9,6 +9,7 @@ const SOURCE = `
 const face = rect(20, 20);
 const cube = extrude(face, 20);
 const rounded = fillet(cube, edges(cube).all, 3);
+render(rounded, { cube, face });
 `;
 
 describe("runtime.run", () => {
@@ -16,21 +17,31 @@ describe("runtime.run", () => {
     await init();
   });
 
-  it("runs a cube+fillet script into one alive mesh and a 3-node hierarchy", async () => {
+  it("runs a model with render() into primary + named stages", async () => {
     const result = await run(SOURCE, { compile: nodeCompile });
     expect(result.errors).toEqual([]);
-    expect(result.meshes).toHaveLength(1);
-    expect(result.meshes[0].positions.length).toBeGreaterThan(0);
-    expect(result.hierarchy).toHaveLength(3);
-    const alive = result.hierarchy.filter((n) => n.alive);
-    expect(alive).toHaveLength(1);
-    expect(alive[0].op).toBe("fillet");
+    expect(result.primary).toBe("result");
+    expect(result.stages.map((s) => [s.name, s.op])).toEqual([
+      ["result", "fillet"],
+      ["cube", "extrude"],
+      ["face", "rect"],
+    ]);
+    for (const s of result.stages) {
+      expect(s.mesh.positions.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("errors when the model never calls render()", async () => {
+    const result = await run("const x = rect(1, 1);", { compile: nodeCompile });
+    // rect alone is a region, not a body, so there's no fallback body to render.
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.stages).toEqual([]);
   });
 
   it("reports errors without throwing", async () => {
     const result = await run("this is not valid ts !!!", { compile: nodeCompile });
     expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.meshes).toEqual([]);
+    expect(result.stages).toEqual([]);
   });
 
   it("aborts a runaway loop via the timeout instead of hanging", async () => {
@@ -40,6 +51,6 @@ describe("runtime.run", () => {
     });
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0].toLowerCase()).toContain("timed out");
-    expect(result.meshes).toEqual([]);
+    expect(result.stages).toEqual([]);
   });
 });

@@ -13,8 +13,7 @@ your own editor and version-control them.
   - **bundles the selected file + its imports** (esbuild) so model files can
     `import` other files and npm libraries;
   - runs the bundle **headlessly** through `@cadcode/runtime` + `@cadcode/kernel`
-    and **live-pushes** the meshes + hierarchy to the browser over Vite's HMR
-    socket;
+    and **live-pushes** the render stages to the browser over Vite's HMR socket;
   - **watches** the file and its imports and re-renders on save (auto-refresh).
   Rendering is lazy — only the file currently being viewed is built.
 - **`cadcode export`** — placeholder; headless STL/STEP/3MF export arrives in M4.

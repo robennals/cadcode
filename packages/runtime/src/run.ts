@@ -11,28 +11,19 @@ import {
   errorMessage,
   type Model,
   type RunResult,
-  type HierarchyNode,
-  type BodyMesh,
+  type StageMesh,
 } from "@cadcode/protocol";
 import {
   extrudeRect,
   filletAll,
   tessellate,
+  regionFaceMesh,
   dispose,
   type Solid,
 } from "@cadcode/kernel";
 import type { CompileFn } from "./compile";
 
 const DEFAULT_TIMEOUT_MS = 5000;
-
-function buildHierarchy(model: Model): HierarchyNode[] {
-  const aliveSet = new Set(model.alive);
-  return model.order.map((id) => {
-    const node = model.nodes[id];
-    const children = "sources" in node ? node.sources : [];
-    return { id, op: node.op, label: node.op, alive: aliveSet.has(id), children };
-  });
-}
 
 /** Walk the graph, producing a replicad Solid for each body id into `solids`. */
 function evaluate(model: Model, solids: Map<string, Solid>): void {
@@ -50,6 +41,18 @@ function evaluate(model: Model, solids: Map<string, Solid>): void {
       solids.set(id, filletAll(base, node.radius));
     }
   }
+}
+
+/** Mesh one render target (a body solid, or a region as a flat face). */
+function meshTarget(model: Model, solids: Map<string, Solid>, id: string): StageMesh {
+  const node = model.nodes[id];
+  if (!node) throw new Error(`render target '${id}' does not exist`);
+  if (node.op === "rect") {
+    return { name: "", op: "rect", mesh: regionFaceMesh(id, node.width, node.height) };
+  }
+  const solid = solids.get(id);
+  if (!solid) throw new Error(`render target '${id}' has no geometry`);
+  return { name: "", op: node.op, mesh: tessellate(id, solid) };
 }
 
 /**
@@ -77,6 +80,7 @@ export function runCode(
     fillet: builder.fillet,
     edges: builder.edges,
     dimension,
+    render: builder.render,
   });
 
   try {
@@ -89,15 +93,27 @@ export function runCode(
   }
 
   const model = builder.getModel();
+  if (!model.render) {
+    return emptyResult(["nothing to render — call render(...) in your model"]);
+  }
+
+  // The primary is shown by default and named "result"; the rest keep their
+  // user-given names. (If a name collides with "result", the user's wins below.)
+  const targets = [
+    { name: "result", id: model.render.primary },
+    ...model.render.stages,
+  ];
+
   const solids = new Map<string, Solid>();
   try {
     evaluate(model, solids);
-    const meshes: BodyMesh[] = model.alive.map((id) =>
-      tessellate(id, solids.get(id)),
-    );
-    return { hierarchy: buildHierarchy(model), meshes, errors: [] };
+    const stages: StageMesh[] = targets.map((t) => ({
+      ...meshTarget(model, solids, t.id),
+      name: t.name,
+    }));
+    return { stages, primary: "result", errors: [] };
   } catch (e) {
-    return { hierarchy: buildHierarchy(model), meshes: [], errors: [errorMessage(e)] };
+    return emptyResult([errorMessage(e)]);
   } finally {
     for (const s of solids.values()) dispose(s);
   }
