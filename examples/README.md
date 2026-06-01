@@ -26,7 +26,7 @@ Each file is a small, self-contained part that shows off an operator:
 | `cylinder.ts` | `circle` + extrude |
 | `square.ts` | constraint-solved sketch (`lines`/`coincident`/`distance`, …) |
 | `washer.ts` | boolean `subtract` (a disc minus a concentric hole) |
-| `bottle.ts` | `revolve` a 2D profile around the axis |
+| `bottle.ts` | `revolve` a profile, then `shell` it hollow (neck open) |
 | `funnel.ts` | `loft` through stacked circles |
 | `cup.ts` | `shell` (hollow open-top vessel) |
 | `beveled-block.ts` | `chamfer` (bevelled edges) |

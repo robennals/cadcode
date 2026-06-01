@@ -1,5 +1,6 @@
-// A bottle, revolved from a 2D profile. Profile points are (radius, height);
-// it starts and ends on the axis (radius 0) so the revolution is a solid.
+// A bottle: revolve a 2D profile (points are radius/height, starting and ending
+// on the axis so the revolution is a solid), then shell it hollow with only the
+// top (neck) face open.
 const profile = polygon([
   [0, 0],
   [25, 0],
@@ -9,6 +10,7 @@ const profile = polygon([
   [10, 92],
   [0, 92],
 ]);
-const bottle = revolve(profile);
+const solid = revolve(profile);
+const bottle = shell(solid, 2.5, faces(solid).top);
 
-render(bottle, { profile });
+render(bottle, { solid, profile });
