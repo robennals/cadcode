@@ -45,10 +45,15 @@ export function Viewport({ meshes }: { meshes: BodyMesh[] }) {
     renderer.setSize(container.clientWidth, container.clientHeight);
     host.appendChild(renderer.domElement);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    dirLight.position.set(50, 80, 30);
-    scene.add(dirLight);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    // Key light from the front-top, plus a dimmer fill light from the opposite
+    // side so faces aren't left in the dark when you rotate to the back.
+    const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+    keyLight.position.set(50, 80, 30);
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    fillLight.position.set(-50, -30, -40);
+    scene.add(fillLight);
 
     // Orientation aids — help perceive pan/zoom/rotate.
     const grid = new THREE.GridHelper(400, 40, 0x444444, 0x2c2c2c);
