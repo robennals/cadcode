@@ -8,6 +8,14 @@ export interface EdgeSelector {
   kind: "all";
 }
 
+/** A named set of faces on a body. Resolved geometrically at evaluate time
+ *  (top = the flat cap at max Z, bottom = at min Z, sides = the rest, all). */
+export type FaceKind = "top" | "bottom" | "sides" | "all";
+export interface FaceSelector {
+  body: string;
+  kind: FaceKind;
+}
+
 /** A closed 2D profile. M0 supports only an axis-aligned rectangle (centered). */
 export interface RectNode {
   id: string;
@@ -33,8 +41,90 @@ export interface FilletNode {
   sources: string[];
 }
 
-export type BodyNode = ExtrudeNode | FilletNode;
-export type Node = RectNode | BodyNode | SketchNode;
+// --- More primitives + operators ---
+
+/** A circle region (centered at the origin on XY). */
+export interface CircleNode {
+  id: string;
+  op: "circle";
+  radius: number;
+}
+
+/** A region defined by explicit closed-polygon 2D points. */
+export interface PolygonNode {
+  id: string;
+  op: "polygon";
+  points: [number, number][];
+}
+
+/** Revolve a profile region around the Z axis (profile points are radius/height). */
+export interface RevolveNode {
+  id: string;
+  op: "revolve";
+  region: string;
+  angle: number; // degrees
+  sources: string[];
+}
+
+/** Loft through a stack of regions, each at its z height. */
+export interface LoftNode {
+  id: string;
+  op: "loft";
+  regions: string[];
+  heights: number[];
+  sources: string[];
+}
+
+/** Hollow a body to a wall thickness, opening the selected face(s). */
+export interface ShellNode {
+  id: string;
+  op: "shell";
+  body: string;
+  thickness: number;
+  open: FaceKind[]; // which named faces to open (e.g. ["top"], ["top","bottom"])
+  sources: string[];
+}
+
+/** Bevel the selected edges of a body. */
+export interface ChamferNode {
+  id: string;
+  op: "chamfer";
+  body: string;
+  edges: EdgeSelector;
+  distance: number;
+  sources: string[];
+}
+
+/** A boolean of two bodies. */
+export interface BooleanNode {
+  id: string;
+  op: "boolean";
+  kind: "union" | "subtract" | "intersect";
+  a: string;
+  b: string;
+  sources: string[];
+}
+
+/** Translate a body by an offset. */
+export interface MoveNode {
+  id: string;
+  op: "move";
+  body: string;
+  offset: [number, number, number];
+  sources: string[];
+}
+
+export type RegionNode = RectNode | CircleNode | PolygonNode | SketchNode;
+export type BodyNode =
+  | ExtrudeNode
+  | FilletNode
+  | RevolveNode
+  | LoftNode
+  | ShellNode
+  | ChamferNode
+  | BooleanNode
+  | MoveNode;
+export type Node = RegionNode | BodyNode;
 
 // --- Sketch constraints (M1) ---
 
@@ -103,8 +193,19 @@ export interface Model {
   render?: RenderDecl;
 }
 
+const BODY_OPS = new Set([
+  "extrude",
+  "fillet",
+  "revolve",
+  "loft",
+  "shell",
+  "chamfer",
+  "boolean",
+  "move",
+]);
+
 export function isBodyNode(node: Node): node is BodyNode {
-  return node.op === "extrude" || node.op === "fillet";
+  return BODY_OPS.has(node.op);
 }
 
 /** A tessellated body sent to the viewport. Arrays are transferable. */

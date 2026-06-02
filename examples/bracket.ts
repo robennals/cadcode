@@ -1,9 +1,12 @@
-// Demonstrates importing another file: this model is built from a helper in
-// ./lib/shapes. Editing either file live-updates the render.
-import { squareBlock } from "./lib/shapes";
+// A mounting bracket: a slab with two bolt holes drilled through it, using
+// move() to position the holes and subtract() to cut them out.
+const slab = extrude(rect(70, 28), 8);
 
-const block = squareBlock(40, 12);
-const bracket = fillet(block, edges(block).all, 3);
+function boltHole(x: number) {
+  return move(extrude(circle(4), 8), [x, 0, 0]);
+}
 
-// Primary view is the filleted bracket; "block" steps back to the raw extrude.
-render(bracket, { block });
+const drilled = subtract(slab, boltHole(-22));
+const bracket = subtract(drilled, boltHole(22));
+
+render(bracket, { slab });

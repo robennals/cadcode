@@ -6,6 +6,8 @@ import type {
   Model,
   Node,
   EdgeSelector,
+  FaceSelector,
+  FaceKind,
   RenderDecl,
   PointDef,
   LineDef,
@@ -19,6 +21,14 @@ export interface Handle {
 
 export interface EdgeQuery {
   readonly all: EdgeSelector;
+}
+
+/** Named face selectors on a body (resolved geometrically at evaluate time). */
+export interface FaceQuery {
+  readonly top: FaceSelector;
+  readonly bottom: FaceSelector;
+  readonly sides: FaceSelector;
+  readonly all: FaceSelector;
 }
 
 /** A sketch point handle. */
@@ -35,8 +45,23 @@ export interface Line {
 
 export interface Builder {
   rect(width: number, height: number): Handle;
+  circle(radius: number): Handle;
+  polygon(points: [number, number][]): Handle;
   extrude(region: Handle, height: number): Handle;
+  revolve(region: Handle, opts?: { angle?: number }): Handle;
+  loft(regions: Handle[], heights: number[]): Handle;
+  shell(
+    body: Handle,
+    thickness: number,
+    open?: FaceSelector | FaceSelector[],
+  ): Handle;
+  faces(body: Handle): FaceQuery;
   fillet(body: Handle, edges: EdgeSelector, radius: number): Handle;
+  chamfer(body: Handle, edges: EdgeSelector, distance: number): Handle;
+  union(a: Handle, b: Handle): Handle;
+  subtract(a: Handle, b: Handle): Handle;
+  intersect(a: Handle, b: Handle): Handle;
+  move(body: Handle, offset: [number, number, number]): Handle;
   edges(body: Handle): EdgeQuery;
   /** Declare what to render: the primary object plus named, viewable stages. */
   render(primary: Handle, stages?: Record<string, Handle>): void;
@@ -111,10 +136,28 @@ export function createBuilder(): Builder {
     nodes[node.id] = node;
     order.push(node.id);
     for (const c of consumes) alive.delete(c);
-    // rects and sketches are regions, not bodies; only bodies are "alive".
-    if (node.op !== "rect" && node.op !== "sketch") alive.add(node.id);
+    // regions (rect/circle/polygon/sketch) aren't bodies; only bodies are "alive".
+    const REGIONS = new Set(["rect", "circle", "polygon", "sketch"]);
+    if (!REGIONS.has(node.op)) alive.add(node.id);
     return { __id: node.id };
   };
+
+  const boolean = (
+    kind: "union" | "subtract" | "intersect",
+    a: Handle,
+    b: Handle,
+  ): Handle =>
+    add(
+      {
+        id: nextId("boolean"),
+        op: "boolean",
+        kind,
+        a: a.__id,
+        b: b.__id,
+        sources: [a.__id, b.__id],
+      },
+      [a.__id, b.__id],
+    );
 
   // --- sketch building state (M1). Entities accumulate until sketch() captures
   // them; supports one sketch built at a time (sequential). ---
@@ -131,6 +174,80 @@ export function createBuilder(): Builder {
   return {
     rect(width, height) {
       return add({ id: nextId("rect"), op: "rect", width, height }, []);
+    },
+    circle(radius) {
+      return add({ id: nextId("circle"), op: "circle", radius }, []);
+    },
+    polygon(points) {
+      return add({ id: nextId("polygon"), op: "polygon", points }, []);
+    },
+    revolve(region, opts = {}) {
+      return add(
+        {
+          id: nextId("revolve"),
+          op: "revolve",
+          region: region.__id,
+          angle: opts.angle ?? 360,
+          sources: [region.__id],
+        },
+        [region.__id],
+      );
+    },
+    loft(regions, heights) {
+      const ids = regions.map((r) => r.__id);
+      return add(
+        { id: nextId("loft"), op: "loft", regions: ids, heights, sources: ids },
+        ids,
+      );
+    },
+    shell(body, thickness, open) {
+      const sels = open === undefined ? [] : Array.isArray(open) ? open : [open];
+      const kinds: FaceKind[] = sels.length ? sels.map((s) => s.kind) : ["top"];
+      return add(
+        {
+          id: nextId("shell"),
+          op: "shell",
+          body: body.__id,
+          thickness,
+          open: kinds,
+          sources: [body.__id],
+        },
+        [body.__id],
+      );
+    },
+    chamfer(body, edges, distance) {
+      return add(
+        {
+          id: nextId("chamfer"),
+          op: "chamfer",
+          body: body.__id,
+          edges,
+          distance,
+          sources: [body.__id],
+        },
+        [body.__id],
+      );
+    },
+    union(a, b) {
+      return boolean("union", a, b);
+    },
+    subtract(a, b) {
+      return boolean("subtract", a, b);
+    },
+    intersect(a, b) {
+      return boolean("intersect", a, b);
+    },
+    move(body, offset) {
+      return add(
+        {
+          id: nextId("move"),
+          op: "move",
+          body: body.__id,
+          offset,
+          sources: [body.__id],
+        },
+        [body.__id],
+      );
     },
     extrude(region, height) {
       return add(
@@ -159,6 +276,15 @@ export function createBuilder(): Builder {
     },
     edges(body) {
       return { all: { body: body.__id, kind: "all" } };
+    },
+    faces(body) {
+      const sel = (kind: FaceKind): FaceSelector => ({ body: body.__id, kind });
+      return {
+        top: sel("top"),
+        bottom: sel("bottom"),
+        sides: sel("sides"),
+        all: sel("all"),
+      };
     },
     render(primary, stages = {}) {
       renderDecl = {

@@ -28,11 +28,60 @@ declare interface EdgeQuery {
 /** A centered, axis-aligned rectangular region (a 2D profile to extrude). */
 declare function rect(width: number, height: number): Handle;
 
+/** A circle region centered at the origin. */
+declare function circle(radius: number): Handle;
+
+/** A region from explicit closed-polygon 2D points. */
+declare function polygon(points: [number, number][]): Handle;
+
 /** Extrude a region into a solid body. */
 declare function extrude(region: Handle, height: number): Handle;
 
+/** Revolve a region's profile around the Z axis (profile points are radius/height). */
+declare function revolve(region: Handle, opts?: { angle?: number }): Handle;
+
+/** Loft through a stack of regions, each placed at the matching z height. */
+declare function loft(regions: Handle[], heights: number[]): Handle;
+
+/** A named face selector (from `faces(body)`). */
+declare interface FaceSelector {
+  body: string;
+  kind: "top" | "bottom" | "sides" | "all";
+}
+declare interface FaceQuery {
+  readonly top: FaceSelector;
+  readonly bottom: FaceSelector;
+  readonly sides: FaceSelector;
+  readonly all: FaceSelector;
+}
+/** Query the named faces of a body (for shell, etc.). */
+declare function faces(body: Handle): FaceQuery;
+
+/** Hollow a body to a wall thickness, opening the selected face(s). Defaults to
+ *  the top (a cup); pass `[faces(b).top, faces(b).bottom]` for an open tube. */
+declare function shell(
+  body: Handle,
+  thickness: number,
+  open?: FaceSelector | FaceSelector[],
+): Handle;
+
 /** Round the selected edges of a body. */
 declare function fillet(body: Handle, edges: EdgeSelector, radius: number): Handle;
+
+/** Bevel the selected edges of a body. */
+declare function chamfer(body: Handle, edges: EdgeSelector, distance: number): Handle;
+
+/** Combine two bodies (boolean union). */
+declare function union(a: Handle, b: Handle): Handle;
+
+/** Cut the second body out of the first (boolean subtract). */
+declare function subtract(a: Handle, b: Handle): Handle;
+
+/** Keep only the overlap of two bodies (boolean intersect). */
+declare function intersect(a: Handle, b: Handle): Handle;
+
+/** Translate a body by an [x, y, z] offset (e.g. to position holes for booleans). */
+declare function move(body: Handle, offset: [number, number, number]): Handle;
 
 /** Query the edges of a body (M0 supports `.all`). */
 declare function edges(body: Handle): EdgeQuery;

@@ -16,3 +16,14 @@ export {
   dispose,
 } from "./kernel";
 export type { Solid } from "./kernel";
+export {
+  extrudeCircle,
+  circleFaceMesh,
+  revolveProfile,
+  loftProfiles,
+  shellBody,
+  chamferAll,
+  booleanOp,
+  translateSolid,
+} from "./ops";
+export type { ProfileSpec } from "./ops";

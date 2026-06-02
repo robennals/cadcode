@@ -56,6 +56,38 @@ describe("createBuilder", () => {
   });
 });
 
+describe("more operators", () => {
+  it("records circle/polygon regions and revolve/loft/shell/chamfer/boolean bodies", () => {
+    const b = createBuilder();
+    const disc = b.circle(10);
+    const cyl = b.extrude(disc, 20);
+    const hollow = b.shell(cyl, 2);
+    const beveled = b.chamfer(hollow, b.edges(hollow).all, 1);
+    const poly = b.polygon([
+      [2, 0],
+      [5, 0],
+      [5, 10],
+    ]);
+    const vase = b.revolve(poly);
+    const cone = b.loft([b.circle(10), b.circle(5)], [0, 20]);
+    const combo = b.union(beveled, vase);
+    const cut = b.subtract(combo, cone);
+    const model = b.getModel();
+
+    expect(model.nodes[disc.__id].op).toBe("circle");
+    expect(model.nodes[poly.__id].op).toBe("polygon");
+    expect(model.nodes[vase.__id].op).toBe("revolve");
+    if (model.nodes[cone.__id].op === "loft") {
+      expect((model.nodes[cone.__id] as { heights: number[] }).heights).toEqual([0, 20]);
+    }
+    expect(model.nodes[cut.__id].op).toBe("boolean");
+    // Regions aren't alive; consumed bodies aren't either — only the final cut.
+    expect(model.alive).toContain(cut.__id);
+    expect(model.alive).not.toContain(disc.__id);
+    expect(model.alive).not.toContain(cyl.__id);
+  });
+});
+
 describe("sketch + constraints", () => {
   it("records a square sketch with points, lines, constraints, and a 4-point loop", () => {
     const b = createBuilder();
