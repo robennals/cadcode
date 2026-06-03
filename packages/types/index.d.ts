@@ -15,15 +15,14 @@ declare interface Handle {
   readonly __id: string;
 }
 
-/** A selector describing a set of edges on a body (M0 supports `all`). */
-declare interface EdgeSelector {
-  body: string;
-  kind: "all";
-}
+/** How to find a face of a body. */
+declare type FaceLocator = { kind: "planeZ"; z: number } | { kind: "named"; name: "top" | "bottom" };
+declare interface FaceRef { body: string; locator: FaceLocator }
+/** An edge selection (from edges()/connectingEdges()). */
+declare interface EdgeQuery { kind: string; body: string }
 
-declare interface EdgeQuery {
-  readonly all: EdgeSelector;
-}
+/** A body handle that also exposes named face references. */
+declare type Body = Handle & { top: FaceRef; bottom: FaceRef };
 
 /** A centered, axis-aligned rectangular region (a 2D profile to extrude). */
 declare function rect(width: number, height: number): Handle;
@@ -35,7 +34,7 @@ declare function circle(radius: number): Handle;
 declare function polygon(points: [number, number][]): Handle;
 
 /** Extrude a region into a solid body. */
-declare function extrude(region: Handle, height: number): Handle;
+declare function extrude(region: Handle, height: number): Body;
 
 /** Revolve a region's profile around the Z axis (profile points are radius/height). */
 declare function revolve(region: Handle, opts?: { angle?: number }): Handle;
@@ -43,33 +42,22 @@ declare function revolve(region: Handle, opts?: { angle?: number }): Handle;
 /** Loft through a stack of regions, each placed at the matching z height. */
 declare function loft(regions: Handle[], heights: number[]): Handle;
 
-/** A named face selector (from `faces(body)`). */
-declare interface FaceSelector {
-  body: string;
-  kind: "top" | "bottom" | "sides" | "all";
-}
-declare interface FaceQuery {
-  readonly top: FaceSelector;
-  readonly bottom: FaceSelector;
-  readonly sides: FaceSelector;
-  readonly all: FaceSelector;
-}
-/** Query the named faces of a body (for shell, etc.). */
-declare function faces(body: Handle): FaceQuery;
+/** Edges of a body (all) or of a face. */
+declare function edges(target: Handle | FaceRef): EdgeQuery;
+/** Edges connecting two faces (e.g. the verticals between top and bottom). */
+declare function connectingEdges(a: FaceRef, b: FaceRef): EdgeQuery;
+/** Named face references of a body. */
+declare function faces(body: Handle): { top: FaceRef; bottom: FaceRef };
 
 /** Hollow a body to a wall thickness, opening the selected face(s). Defaults to
  *  the top (a cup); pass `[faces(b).top, faces(b).bottom]` for an open tube. */
-declare function shell(
-  body: Handle,
-  thickness: number,
-  open?: FaceSelector | FaceSelector[],
-): Handle;
+declare function shell(body: Handle, thickness: number, open?: FaceRef | FaceRef[]): Handle;
 
 /** Round the selected edges of a body. */
-declare function fillet(body: Handle, edges: EdgeSelector, radius: number): Handle;
+declare function fillet(body: Handle, edges: EdgeQuery | EdgeQuery[], radius: number): Handle;
 
 /** Bevel the selected edges of a body. */
-declare function chamfer(body: Handle, edges: EdgeSelector, distance: number): Handle;
+declare function chamfer(body: Handle, edges: EdgeQuery | EdgeQuery[], distance: number): Handle;
 
 /** Combine two bodies (boolean union). */
 declare function union(a: Handle, b: Handle): Handle;
@@ -82,9 +70,6 @@ declare function intersect(a: Handle, b: Handle): Handle;
 
 /** Translate a body by an [x, y, z] offset (e.g. to position holes for booleans). */
 declare function move(body: Handle, offset: [number, number, number]): Handle;
-
-/** Query the edges of a body (M0 supports `.all`). */
-declare function edges(body: Handle): EdgeQuery;
 
 /**
  * Declare what the viewer should render. The first argument is the primary
