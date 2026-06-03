@@ -7,7 +7,7 @@ describe("createBuilder", () => {
     const b = createBuilder();
     const face = b.rect(20, 20);
     const cube = b.extrude(face, 20);
-    b.fillet(cube, b.edges(cube).all, 3);
+    b.fillet(cube, b.edges(cube), 3);
     const model = b.getModel();
 
     expect(model.order).toHaveLength(3);
@@ -37,7 +37,7 @@ describe("createBuilder", () => {
     const b = createBuilder();
     const face = b.rect(20, 20);
     const cube = b.extrude(face, 20);
-    const rounded = b.fillet(cube, b.edges(cube).all, 3);
+    const rounded = b.fillet(cube, b.edges(cube), 3);
     b.render(rounded, { cube, face });
     const model = b.getModel();
     expect(model.render?.primary).toBe(rounded.__id);
@@ -62,7 +62,7 @@ describe("more operators", () => {
     const disc = b.circle(10);
     const cyl = b.extrude(disc, 20);
     const hollow = b.shell(cyl, 2);
-    const beveled = b.chamfer(hollow, b.edges(hollow).all, 1);
+    const beveled = b.chamfer(hollow, b.edges(hollow), 1);
     const poly = b.polygon([
       [2, 0],
       [5, 0],
@@ -85,6 +85,20 @@ describe("more operators", () => {
     expect(model.alive).toContain(cut.__id);
     expect(model.alive).not.toContain(disc.__id);
     expect(model.alive).not.toContain(cyl.__id);
+  });
+});
+
+describe("face references and edge queries", () => {
+  it("extrude exports top/bottom refs; edges()/connectingEdges() build queries", () => {
+    const b = createBuilder();
+    const box = b.extrude(b.rect(20, 20), 10);
+    expect(box.top.locator).toEqual({ kind: "planeZ", z: 10 });
+    expect(b.edges(box)).toEqual({ kind: "all", body: box.__id });
+    expect(b.edges(box.top)).toEqual({ kind: "ofFace", body: box.__id, face: box.top.locator });
+    expect(b.connectingEdges(box.top, box.bottom)).toEqual({ kind: "connecting", body: box.__id, a: box.top.locator, b: box.bottom.locator });
+    const rounded = b.fillet(box, [b.edges(box.top), b.connectingEdges(box.top, box.bottom)], 2);
+    const node = b.getModel().nodes[rounded.__id];
+    if (node.op === "fillet") expect(node.edges).toHaveLength(2);
   });
 });
 

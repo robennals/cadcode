@@ -5,9 +5,9 @@
 import type {
   Model,
   Node,
-  EdgeSelector,
-  FaceSelector,
-  FaceKind,
+  FaceRef,
+  FaceLocator,
+  EdgeQuery,
   RenderDecl,
   PointDef,
   LineDef,
@@ -19,17 +19,8 @@ export interface Handle {
   readonly __id: string;
 }
 
-export interface EdgeQuery {
-  readonly all: EdgeSelector;
-}
-
-/** Named face selectors on a body (resolved geometrically at evaluate time). */
-export interface FaceQuery {
-  readonly top: FaceSelector;
-  readonly bottom: FaceSelector;
-  readonly sides: FaceSelector;
-  readonly all: FaceSelector;
-}
+/** A body handle that also exposes references to its top/bottom flat faces. */
+export type Body = Handle & { top: FaceRef; bottom: FaceRef };
 
 /** A sketch point handle. */
 export interface Point {
@@ -47,22 +38,23 @@ export interface Builder {
   rect(width: number, height: number): Handle;
   circle(radius: number): Handle;
   polygon(points: [number, number][]): Handle;
-  extrude(region: Handle, height: number): Handle;
+  extrude(region: Handle, height: number): Body;
   revolve(region: Handle, opts?: { angle?: number }): Handle;
   loft(regions: Handle[], heights: number[]): Handle;
   shell(
     body: Handle,
     thickness: number,
-    open?: FaceSelector | FaceSelector[],
+    open?: FaceRef | FaceRef[],
   ): Handle;
-  faces(body: Handle): FaceQuery;
-  fillet(body: Handle, edges: EdgeSelector, radius: number): Handle;
-  chamfer(body: Handle, edges: EdgeSelector, distance: number): Handle;
+  faces(body: Handle): { top: FaceRef; bottom: FaceRef };
+  fillet(body: Handle, edges: EdgeQuery | EdgeQuery[], radius: number): Handle;
+  chamfer(body: Handle, edges: EdgeQuery | EdgeQuery[], distance: number): Handle;
   union(a: Handle, b: Handle): Handle;
   subtract(a: Handle, b: Handle): Handle;
   intersect(a: Handle, b: Handle): Handle;
   move(body: Handle, offset: [number, number, number]): Handle;
-  edges(body: Handle): EdgeQuery;
+  edges(target: Handle | FaceRef): EdgeQuery;
+  connectingEdges(a: FaceRef, b: FaceRef): EdgeQuery;
   /** Declare what to render: the primary object plus named, viewable stages. */
   render(primary: Handle, stages?: Record<string, Handle>): void;
   // --- sketch constraints (M1) ---
@@ -201,27 +193,30 @@ export function createBuilder(): Builder {
       );
     },
     shell(body, thickness, open) {
-      const sels = open === undefined ? [] : Array.isArray(open) ? open : [open];
-      const kinds: FaceKind[] = sels.length ? sels.map((s) => s.kind) : ["top"];
+      const refs = open === undefined ? [] : Array.isArray(open) ? open : [open];
+      const locators: FaceLocator[] = refs.length
+        ? refs.map((r) => r.locator)
+        : [{ kind: "named", name: "top" }];
       return add(
         {
           id: nextId("shell"),
           op: "shell",
           body: body.__id,
           thickness,
-          open: kinds,
+          open: locators,
           sources: [body.__id],
         },
         [body.__id],
       );
     },
     chamfer(body, edges, distance) {
+      const q = Array.isArray(edges) ? edges : [edges];
       return add(
         {
           id: nextId("chamfer"),
           op: "chamfer",
           body: body.__id,
-          edges,
+          edges: q,
           distance,
           sources: [body.__id],
         },
@@ -250,7 +245,7 @@ export function createBuilder(): Builder {
       );
     },
     extrude(region, height) {
-      return add(
+      const h = add(
         {
           id: nextId("extrude"),
           op: "extrude",
@@ -260,31 +255,39 @@ export function createBuilder(): Builder {
         },
         [region.__id],
       );
+      return Object.assign(h, {
+        top: { body: h.__id, locator: { kind: "planeZ", z: height } } as FaceRef,
+        bottom: { body: h.__id, locator: { kind: "planeZ", z: 0 } } as FaceRef,
+      });
     },
     fillet(body, edges, radius) {
+      const q = Array.isArray(edges) ? edges : [edges];
       return add(
         {
           id: nextId("fillet"),
           op: "fillet",
           body: body.__id,
-          edges,
+          edges: q,
           radius,
           sources: [body.__id],
         },
         [body.__id],
       );
     },
-    edges(body) {
-      return { all: { body: body.__id, kind: "all" } };
+    edges(target) {
+      if ("locator" in target)
+        return { kind: "ofFace", body: target.body, face: target.locator };
+      return { kind: "all", body: target.__id };
+    },
+    connectingEdges(a, b) {
+      return { kind: "connecting", body: a.body, a: a.locator, b: b.locator };
     },
     faces(body) {
-      const sel = (kind: FaceKind): FaceSelector => ({ body: body.__id, kind });
-      return {
-        top: sel("top"),
-        bottom: sel("bottom"),
-        sides: sel("sides"),
-        all: sel("all"),
-      };
+      const ref = (name: "top" | "bottom"): FaceRef => ({
+        body: body.__id,
+        locator: { kind: "named", name },
+      });
+      return { top: ref("top"), bottom: ref("bottom") };
     },
     render(primary, stages = {}) {
       renderDecl = {
