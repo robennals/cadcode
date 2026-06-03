@@ -27,3 +27,5 @@ export {
   translateSolid,
 } from "./ops";
 export type { ProfileSpec } from "./ops";
+export { resolveEdges, resolveFaces, filletEdges, chamferEdges, shellFaces } from "./resolve";
+export type { EdgeSpec, FaceSpec } from "./resolve";
