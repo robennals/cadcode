@@ -6,5 +6,5 @@ export function squareBlock(size: number, height = size) {
 
 export function roundedBlock(size: number, height: number, radius: number) {
   const body = squareBlock(size, height);
-  return fillet(body, edges(body).all, radius);
+  return fillet(body, edges(body), radius);
 }

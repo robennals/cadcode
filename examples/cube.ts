@@ -2,7 +2,7 @@
 // Explicit geometry (no constraint solver yet, that arrives in M1).
 const face = rect(30, 30);
 const cube = extrude(face, 30);
-const rounded = fillet(cube, edges(cube).all, 4);
+const rounded = fillet(cube, edges(cube), 4);
 
 // Show the rounded cube by default; let the viewer also step back to the plain
 // cube or the base face (click them in the stage panel at the bottom).

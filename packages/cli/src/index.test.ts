@@ -28,7 +28,7 @@ function makeProject(): string {
     join(dir, "box.ts"),
     "import { squareBlock } from './lib/shapes';\n" +
       "const part = squareBlock(20);\n" +
-      "const rounded = fillet(part, edges(part).all, 3);\n" +
+      "const rounded = fillet(part, edges(part), 3);\n" +
       "render(rounded, { block: part });\n",
   );
   writeFileSync(join(dir, "box.test.ts"), "// excluded\n");
