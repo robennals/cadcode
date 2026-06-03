@@ -9,7 +9,7 @@ import { nodeCompile } from "./compile";
 const SOURCE = `
 const face = rect(20, 20);
 const cube = extrude(face, 20);
-const rounded = fillet(cube, edges(cube).all, 3);
+const rounded = fillet(cube, edges(cube), 3);
 render(rounded, { cube, face });
 `;
 
@@ -37,7 +37,7 @@ describe("runtime.run", () => {
       const cup = shell(extrude(circle(15), 30), 2);
       const cone = loft([circle(10), circle(5)], [0, 20]);
       const vase = revolve(polygon([[2,0],[6,0],[6,10],[2,10]]));
-      const beveled = chamfer(extrude(rect(20,20), 10), edges(extrude(rect(20,20), 10)).all, 2);
+      const beveled = chamfer(extrude(rect(20,20), 10), edges(extrude(rect(20,20), 10)), 2);
       const washer = subtract(extrude(circle(10), 4), extrude(circle(5), 4));
       render(cup, { cone, vase, beveled, washer });
     `;
@@ -75,6 +75,18 @@ describe("runtime.run", () => {
     for (const s of result.stages) {
       expect(s.mesh.positions.length).toBeGreaterThan(0);
     }
+  });
+
+  it("fillets only the top rim via face-ref selection", async () => {
+    const src = `
+      const box = extrude(rect(20, 20), 20);
+      const rounded = fillet(box, edges(box.top), 2);
+      render(rounded);
+    `;
+    const result = await run(src, { compile: nodeCompile });
+    expect(result.errors).toEqual([]);
+    expect(result.stages[0].op).toBe("fillet");
+    expect(result.stages[0].mesh.positions.length).toBeGreaterThan(0);
   });
 
   it("errors when the model never calls render()", async () => {

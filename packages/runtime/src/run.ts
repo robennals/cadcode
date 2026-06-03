@@ -12,6 +12,8 @@ import {
   type Model,
   type RunResult,
   type StageMesh,
+  type EdgeQuery,
+  type FaceLocator,
 } from "@cadcode/protocol";
 import {
   extrudeRect,
@@ -19,11 +21,11 @@ import {
   extrudeCircle,
   revolveProfile,
   loftProfiles,
-  shellBody,
-  chamferAll,
+  shellFaces,
+  chamferEdges,
   booleanOp,
   translateSolid,
-  filletAll,
+  filletEdges,
   tessellate,
   regionFaceMesh,
   circleFaceMesh,
@@ -31,7 +33,19 @@ import {
   dispose,
   type Solid,
   type ProfileSpec,
+  type EdgeSpec,
+  type FaceSpec,
 } from "@cadcode/kernel";
+
+/** Strip the protocol body id off a face locator to get a kernel face spec. */
+const toFaceSpec = (l: FaceLocator): FaceSpec => l;
+/** Strip the protocol body id off an edge query to get a kernel edge spec. */
+const toEdgeSpec = (q: EdgeQuery): EdgeSpec =>
+  q.kind === "all"
+    ? { kind: "all" }
+    : q.kind === "ofFace"
+      ? { kind: "ofFace", face: toFaceSpec(q.face) }
+      : { kind: "connecting", a: toFaceSpec(q.a), b: toFaceSpec(q.b) };
 import { solveSketch } from "@cadcode/solver";
 import type { CompileFn } from "./compile";
 
@@ -103,13 +117,11 @@ function evaluate(model: Model, solids: Map<string, Solid>): void {
       const specs = node.regions.map((rid, i) => regionSpec(model, rid, node.heights[i]));
       solids.set(id, loftProfiles(specs));
     } else if (node.op === "shell") {
-      solids.set(id, shellBody(need(node.body, "shell"), node.thickness, node.open));
+      solids.set(id, shellFaces(need(node.body, "shell"), node.open.map(toFaceSpec), node.thickness));
     } else if (node.op === "fillet") {
-      if (node.edges.kind !== "all") throw new Error("only edges(...).all is supported");
-      solids.set(id, filletAll(need(node.body, "fillet"), node.radius));
+      solids.set(id, filletEdges(need(node.body, "fillet"), node.edges.map(toEdgeSpec), node.radius));
     } else if (node.op === "chamfer") {
-      if (node.edges.kind !== "all") throw new Error("only edges(...).all is supported");
-      solids.set(id, chamferAll(need(node.body, "chamfer"), node.distance));
+      solids.set(id, chamferEdges(need(node.body, "chamfer"), node.edges.map(toEdgeSpec), node.distance));
     } else if (node.op === "boolean") {
       solids.set(id, booleanOp(need(node.a, "boolean"), need(node.b, "boolean"), node.kind));
     } else if (node.op === "move") {
@@ -170,6 +182,7 @@ export function runCode(
     intersect: builder.intersect,
     move: builder.move,
     edges: builder.edges,
+    connectingEdges: builder.connectingEdges,
     faces: builder.faces,
     dimension,
     render: builder.render,
