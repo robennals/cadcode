@@ -23,6 +23,7 @@ Each file is a small, self-contained part that shows off an operator:
 | File | Shows |
 |---|---|
 | `cube.ts` | extrude + fillet; render stages |
+| `rounded-top.ts` | select & round only the top rim via `edges(block.top)` |
 | `cylinder.ts` | `circle` + extrude |
 | `square.ts` | constraint-solved sketch (`lines`/`coincident`/`distance`, …) |
 | `washer.ts` | boolean `subtract` (a disc minus a concentric hole) |
@@ -38,6 +39,13 @@ Each file is a small, self-contained part that shows off an operator:
 `extrude`, `revolve`, `loft`, `shell`, `fillet`, `chamfer`, `union`, `subtract`,
 `intersect`, `move`; regions `rect`, `circle`, `polygon`, and constraint
 `sketch(...)`. (`sweep` and parametric `dimension()` are coming next.)
+
+Selection by geometry reference: `extrude` returns a body whose `.top`/`.bottom`
+(also `faces(body).top`/`.bottom`) are face references; `edges(body)` selects all
+edges, `edges(faceRef)` the edges of one face, and `connectingEdges(a, b)` the
+edges shared between two faces (e.g. the verticals between `body.top` and
+`body.bottom`). `fillet`/`chamfer` take an edge query (or array); `shell` opens a
+face reference (defaulting to the top).
 
 ## Setup
 

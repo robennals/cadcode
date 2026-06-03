@@ -129,3 +129,10 @@ test("renders an operator example (hollow revolved bottle)", async ({ page }) =>
   await expect(page.getByTestId("stage-solid")).toContainText("revolve");
   await expect(page.getByTestId("errors")).toBeHidden();
 });
+
+test("rounds only the top rim via a face reference", async ({ page }) => {
+  await page.goto("/?file=rounded-top.ts");
+  await expect.poll(() => meshCount(page), { timeout: 60000 }).toBe(1);
+  await expect(page.getByTestId("stage-result")).toContainText("fillet");
+  await expect(page.getByTestId("errors")).toBeHidden();
+});

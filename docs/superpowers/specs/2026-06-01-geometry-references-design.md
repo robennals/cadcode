@@ -186,6 +186,14 @@ chamfer(b, edges(b.neck), 0.5);              // caller uses neck without interna
 
 ## 5. Scope
 
+**Slice 1 delivered:** face references (`planeZ`/`named`), `edges`/`connectingEdges`,
+and query-driven `fillet`/`chamfer`/`shell` — so you can round only the top rim
+(`fillet(b, edges(b.top), r)`), select the verticals between two caps
+(`connectingEdges(b.top, b.bottom)`), and open a chosen face in `shell`.
+**Remaining:** face-as-`Sketch` reification (`box.top.front`), swept-from-sketch
+curved faces, the `body({…})` curation primitive, and provenance chains that carry
+names forward through `fillet`/boolean results.
+
 **First build (this effort):**
 - The reference data model + resolver for **sketch-based references**:
   planar-face-as-`Sketch` and swept-from-sketch faces/edges/points.
