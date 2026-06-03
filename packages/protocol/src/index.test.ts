@@ -10,6 +10,8 @@ import {
   type SketchNode,
   type ConstraintDef,
   type SketchSolution,
+  type FaceRef,
+  type EdgeQuery,
 } from "./index";
 
 describe("isBodyNode", () => {
@@ -20,7 +22,7 @@ describe("isBodyNode", () => {
       id: "c",
       op: "fillet",
       body: "b",
-      edges: { body: "b", kind: "all" },
+      edges: [{ kind: "all", body: "b" }],
       radius: 1,
       sources: ["b"],
     };
@@ -47,6 +49,15 @@ describe("sketch types", () => {
     expect(sol.status).toBe("ok");
     // A sketch is a region, not a body.
     expect(isBodyNode(sketch as unknown as Node)).toBe(false);
+  });
+});
+
+describe("reference types", () => {
+  it("models a face ref and edge queries", () => {
+    const top: FaceRef = { body: "extrude_0", locator: { kind: "planeZ", z: 10 } };
+    const ofFace: EdgeQuery = { kind: "ofFace", body: "extrude_0", face: top.locator };
+    const conn: EdgeQuery = { kind: "connecting", body: "extrude_0", a: { kind: "named", name: "top" }, b: { kind: "named", name: "bottom" } };
+    expect(top.locator.kind).toBe("planeZ"); expect(ofFace.kind).toBe("ofFace"); expect(conn.kind).toBe("connecting");
   });
 });
 

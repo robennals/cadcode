@@ -2,19 +2,23 @@
 // produces), tessellated mesh data, the serialized hierarchy, and the
 // worker<->main-thread message protocol. No runtime logic beyond `isBodyNode`.
 
-/** A selector describing a set of edges on a body. M0 supports only "all". */
-export interface EdgeSelector {
+/** Where a planar face lives on a body: pinned to an explicit z, or named
+ *  (top = the flat cap at max Z, bottom = at min Z) and resolved geometrically. */
+export type FaceLocator =
+  | { kind: "planeZ"; z: number }
+  | { kind: "named"; name: "top" | "bottom" };
+
+/** A reference to a specific face of a body. */
+export interface FaceRef {
   body: string;
-  kind: "all";
+  locator: FaceLocator;
 }
 
-/** A named set of faces on a body. Resolved geometrically at evaluate time
- *  (top = the flat cap at max Z, bottom = at min Z, sides = the rest, all). */
-export type FaceKind = "top" | "bottom" | "sides" | "all";
-export interface FaceSelector {
-  body: string;
-  kind: FaceKind;
-}
+/** A declarative query selecting a set of edges on a body. */
+export type EdgeQuery =
+  | { kind: "all"; body: string }
+  | { kind: "ofFace"; body: string; face: FaceLocator }
+  | { kind: "connecting"; body: string; a: FaceLocator; b: FaceLocator };
 
 /** A closed 2D profile. M0 supports only an axis-aligned rectangle (centered). */
 export interface RectNode {
@@ -36,7 +40,7 @@ export interface FilletNode {
   id: string;
   op: "fillet";
   body: string; // id of the body being filleted
-  edges: EdgeSelector;
+  edges: EdgeQuery[];
   radius: number;
   sources: string[];
 }
@@ -81,7 +85,7 @@ export interface ShellNode {
   op: "shell";
   body: string;
   thickness: number;
-  open: FaceKind[]; // which named faces to open (e.g. ["top"], ["top","bottom"])
+  open: FaceLocator[]; // which faces to open (e.g. [{kind:"named",name:"top"}])
   sources: string[];
 }
 
@@ -90,7 +94,7 @@ export interface ChamferNode {
   id: string;
   op: "chamfer";
   body: string;
-  edges: EdgeSelector;
+  edges: EdgeQuery[];
   distance: number;
   sources: string[];
 }
